@@ -1,12 +1,11 @@
 package http
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
-
-	"github.com/julienschmidt/httprouter"
 )
 
 // Server represents an HTTP server.
@@ -17,7 +16,7 @@ type Server struct {
 	Addr string
 
 	server *http.Server
-	router *httprouter.Router
+	router *http.ServeMux
 }
 
 // NewServer returns a new HTTP server.
@@ -25,15 +24,8 @@ func NewServer() *Server {
 	s := &Server{
 		Logger: NewLogger(),
 		server: &http.Server{},
-		router: httprouter.New(),
+		router: http.NewServeMux(),
 	}
-
-	s.router.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s.Error(w, r, http.StatusNotFound, ErrorResponse{Msg: "Not Found", err: nil})
-	})
-	s.router.MethodNotAllowed = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		s.Error(w, r, http.StatusMethodNotAllowed, ErrorResponse{Msg: "Method Not Allowed", err: nil})
-	})
 
 	s.registerHealthCheckRoutes()
 	s.registerMovieRoutes()
@@ -44,7 +36,7 @@ func NewServer() *Server {
 // Start starts a HTTP server.
 func (s *Server) Start() error {
 	s.server.Addr = s.Addr
-	s.server.Handler = s.router
+	s.server.Handler = http.HandlerFunc(s.ServeHTTP)
 	s.server.IdleTimeout = time.Minute
 	s.server.ReadTimeout = 10 * time.Second
 	s.server.WriteTimeout = 30 * time.Second
@@ -57,6 +49,39 @@ func (s *Server) Start() error {
 	s.Logger.Error("HTTP server startup", "error", err)
 
 	return err
+}
+
+// hijackResponseWriter records status of the HTTP response.
+type hijackResponseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *hijackResponseWriter) WriteHeader(statusCode int) {
+	w.status = statusCode
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (w *hijackResponseWriter) Write(data []byte) (n int, err error) {
+	switch w.status {
+	case http.StatusNotFound:
+		data, err = json.Marshal(ErrorResponse{Msg: http.StatusText(http.StatusNotFound), err: nil})
+		if err != nil {
+			return 0, err
+		}
+	case http.StatusMethodNotAllowed:
+		data, err = json.Marshal(ErrorResponse{Msg: http.StatusText(http.StatusMethodNotAllowed), err: nil})
+		if err != nil {
+			return 0, err
+		}
+	}
+	return w.ResponseWriter.Write(data)
+}
+
+// ServeHTTP handles an HTTP request.
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	sR := &hijackResponseWriter{ResponseWriter: w, status: http.StatusOK}
+	s.router.ServeHTTP(sR, r)
 }
 
 func NewLogger() *slog.Logger {

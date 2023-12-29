@@ -7,7 +7,7 @@ import (
 )
 
 func (s *Server) registerHealthCheckRoutes() {
-	s.router.HandlerFunc(http.MethodGet, "/v1/healthcheck", s.healthCheckHandler)
+	s.router.HandleFunc("GET /v1/healthcheck", s.healthCheckHandler)
 }
 
 func (s *Server) healthCheckHandler(w http.ResponseWriter, r *http.Request) {

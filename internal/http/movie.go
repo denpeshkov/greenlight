@@ -8,16 +8,15 @@ import (
 	"time"
 
 	greenlight "github.com/denpeshkov/greenlight/internal"
-	"github.com/julienschmidt/httprouter"
 )
 
 func (s *Server) registerMovieRoutes() {
-	s.router.GET("/v1/movies/:id", s.showMovieHandler)
-	s.router.HandlerFunc(http.MethodPost, "/v1/movies", s.createMovieHandler)
+	s.router.HandleFunc("GET /v1/movies/{id}", s.showMovieHandler)
+	s.router.HandleFunc("POST /v1/movies", s.createMovieHandler)
 }
 
-func (s *Server) showMovieHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
-	id, err := strconv.Atoi(p.ByName("id"))
+func (s *Server) showMovieHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		s.Error(w, r, http.StatusBadRequest, ErrorResponse{Msg: "Incorrect ID parameter format", err: err})
 		return
