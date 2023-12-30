@@ -17,16 +17,16 @@ func (s *Server) registerMovieHandlers() {
 
 func (s *Server) handleMoveGet(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil {
-		s.Error(w, r, http.StatusBadRequest, ErrorResponse{Msg: "Incorrect ID parameter format", err: err})
+	if err != nil || id < 0 {
+		s.Error(w, r, http.StatusBadRequest, ErrorResponse{Msg: "Incorrect ID parameter", err: err})
 		return
 	}
 
 	if err := json.NewEncoder(w).Encode(greenlight.Movie{
 		Id:      id,
-		Title:   "Movie title",
+		Title:   "Title",
 		Year:    time.Now().Local(),
-		Runtime: 0,
+		Runtime: 120,
 		Genres:  []string{"Genre 1", "Genre 2"},
 	}); err != nil {
 		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
@@ -34,5 +34,5 @@ func (s *Server) handleMoveGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "create a new movie")
+	fmt.Fprintln(w, "Create a new movie")
 }

@@ -12,7 +12,7 @@ func (s *Server) Error(w http.ResponseWriter, r *http.Request, statusCode int, e
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(errResp); err != nil {
-		s.Logger.Error("ErrorResponse JSON encoding", "error", err)
+		s.Logger.Error("error processing an error response", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
