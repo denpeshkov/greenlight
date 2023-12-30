@@ -6,11 +6,11 @@ import (
 	"net/http"
 )
 
-func (s *Server) registerHealthCheckRoutes() {
-	s.router.HandleFunc("GET /v1/healthcheck", s.healthCheckHandler)
+func (s *Server) registerHealthCheckHandlers() {
+	s.router.HandleFunc("GET /v1/healthcheck", s.handleHealthCheck)
 }
 
-func (s *Server) healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	info := HealthInfo{"1.0", "UP"}
 
 	w.Header().Set("Content-Type", "application/json")

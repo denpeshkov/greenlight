@@ -27,8 +27,8 @@ func NewServer() *Server {
 		router: http.NewServeMux(),
 	}
 
-	s.registerHealthCheckRoutes()
-	s.registerMovieRoutes()
+	s.registerHealthCheckHandlers()
+	s.registerMovieHandlers()
 
 	return s
 }

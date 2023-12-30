@@ -10,12 +10,12 @@ import (
 	greenlight "github.com/denpeshkov/greenlight/internal"
 )
 
-func (s *Server) registerMovieRoutes() {
-	s.router.HandleFunc("GET /v1/movies/{id}", s.showMovieHandler)
-	s.router.HandleFunc("POST /v1/movies", s.createMovieHandler)
+func (s *Server) registerMovieHandlers() {
+	s.router.HandleFunc("GET /v1/movies/{id}", s.handleMoveGet)
+	s.router.HandleFunc("POST /v1/movies", s.handleMovieCreate)
 }
 
-func (s *Server) showMovieHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleMoveGet(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil {
 		s.Error(w, r, http.StatusBadRequest, ErrorResponse{Msg: "Incorrect ID parameter format", err: err})
@@ -33,6 +33,6 @@ func (s *Server) showMovieHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) createMovieHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "create a new movie")
 }
