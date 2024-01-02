@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"net/http"
 )
 
@@ -13,13 +12,13 @@ func (s *Server) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	info := HealthInfo{"1.0", "UP"}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(info); err != nil {
-		errResp := ErrorResponse{Msg: "Error processing request", err: err}
-		s.Error(w, r, http.StatusInternalServerError, errResp)
+	if err := s.sendResponse(w, r, http.StatusOK, info); err != nil {
+		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
+		return
 	}
 }
 
-// Application information.
+// Application information.s
 type HealthInfo struct {
 	// App's version.
 	Version string `json:"version"`
