@@ -5,23 +5,26 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	greenlight "github.com/denpeshkov/greenlight/internal"
 )
 
 // Server represents an HTTP server.
 type Server struct {
-	// Logger to use.
-	Logger *slog.Logger
 	// Address to listen on, ":http" if empty.
 	Addr string
 
+	MovieService greenlight.MovieService
+
 	server *http.Server
 	router *http.ServeMux
+	logger *slog.Logger
 }
 
-// NewServer returns a new HTTP server.
+// NewServer returns a new instance of [Server].
 func NewServer() *Server {
 	s := &Server{
-		Logger: NewLogger(),
+		logger: newLogger(),
 		server: &http.Server{},
 		router: http.NewServeMux(),
 	}
@@ -39,13 +42,13 @@ func (s *Server) Start() error {
 	s.server.IdleTimeout = time.Minute
 	s.server.ReadTimeout = 10 * time.Second
 	s.server.WriteTimeout = 30 * time.Second
-	s.server.ErrorLog = slog.NewLogLogger(s.Logger.Handler(), slog.LevelError)
+	s.server.ErrorLog = slog.NewLogLogger(s.logger.Handler(), slog.LevelError)
 
-	s.Logger.Debug("starting HTTP server", "addr", s.Addr)
+	s.logger.Debug("starting HTTP server", "addr", s.Addr)
 
 	err := s.server.ListenAndServe()
 
-	s.Logger.Error("HTTP server startup", "error", err)
+	s.logger.Error("HTTP server startup", "error", err)
 
 	return err
 }
@@ -56,7 +59,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.ServeHTTP(w, r)
 }
 
-func NewLogger() *slog.Logger {
+func newLogger() *slog.Logger {
 	opts := slog.HandlerOptions{AddSource: true}
 	handler := slog.NewJSONHandler(os.Stderr, &opts)
 

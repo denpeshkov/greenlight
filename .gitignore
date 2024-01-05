@@ -18,6 +18,7 @@ out/
 *.out
 go.work
 testdata/
+bin/
 
 ### VSCode
 
@@ -33,3 +34,13 @@ testdata/
 # Ignore all local history of files
 .history
 .ionide
+
+### MacOS
+
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Trashes
+
+.env

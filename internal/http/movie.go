@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -21,13 +20,12 @@ func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.sendResponse(w, r, http.StatusOK, greenlight.Movie{
-		Id:      id,
-		Title:   "Title",
-		Year:    time.Now().Local(),
-		Runtime: 120,
-		Genres:  []string{"Genre 1", "Genre 2"},
-	}); err != nil {
+	m, err := s.MovieService.Movie(id)
+	if err != nil {
+		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
+		return
+	}
+	if err := s.sendResponse(w, r, http.StatusOK, m); err != nil {
 		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
 		return
 	}
@@ -40,7 +38,6 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 		Runtime int       `json:"runtime"`
 		Genres  []string  `json:"genres"`
 	}
-
 	if err := s.readRequest(w, r, &req); err != nil {
 		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
 		return
@@ -52,11 +49,12 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 		Runtime: req.Runtime,
 		Genres:  req.Genres,
 	}
-
 	if err := m.Valid(); err != nil {
 		s.Error(w, r, http.StatusBadRequest, ErrorResponse{Msg: "Validation failure", err: err})
 		return
 	}
-
-	fmt.Printf("%+v\n", req)
+	if err := s.MovieService.CreateMovie(m); err != nil {
+		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
+		return
+	}
 }

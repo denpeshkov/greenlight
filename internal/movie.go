@@ -27,3 +27,9 @@ func (m *Movie) Valid() error {
 	}
 	return nil
 }
+
+// MovieService is a service for managing movies.
+type MovieService interface {
+	Movie(id int) (*Movie, error)
+	CreateMovie(m *Movie) error
+}

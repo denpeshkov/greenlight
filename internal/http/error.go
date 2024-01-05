@@ -7,12 +7,12 @@ import (
 
 // Error responds with an error and specified status code.
 func (s *Server) Error(w http.ResponseWriter, r *http.Request, statusCode int, errResp ErrorResponse) {
-	s.Logger.Error(errResp.Msg, "method", r.Method, "path", r.URL.Path, "error", errResp.err)
+	s.logger.Error(errResp.Msg, "method", r.Method, "path", r.URL.Path, "error", errResp.err)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(errResp); err != nil {
-		s.Logger.Error("error processing an error response", "error", err)
+		s.logger.Error("error processing an error response", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
