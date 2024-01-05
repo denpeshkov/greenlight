@@ -1,3 +1,4 @@
+// Package main implements greenlight application startup.
 package main
 
 import (
