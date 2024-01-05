@@ -32,7 +32,7 @@ func NewDB(dsn string) *DB {
 }
 
 // Open opens the database connection.
-func (db *DB) Open() (err error) {
+func (db *DB) Open(opts ...Option) (err error) {
 	if db.DSN == "" {
 		return errors.New("data source name (DSN) required")
 	}
@@ -40,6 +40,15 @@ func (db *DB) Open() (err error) {
 	if db.db, err = sql.Open("postgres", db.DSN); err != nil {
 		return err
 	}
+
+	var options options
+	for _, o := range opts {
+		o(&options)
+	}
+	db.db.SetMaxOpenConns(options.maxOpenConns)
+	db.db.SetMaxIdleConns(options.maxIdleConns)
+	db.db.SetConnMaxIdleTime(options.maxIdleTime)
+
 	if err = db.db.PingContext(db.ctx); err != nil {
 		return err
 	}
