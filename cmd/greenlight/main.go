@@ -2,7 +2,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/denpeshkov/greenlight/internal/http"
+	"github.com/denpeshkov/greenlight/internal/multierr"
 	"github.com/denpeshkov/greenlight/internal/postgres"
 	_ "github.com/lib/pq"
 )
@@ -48,47 +48,48 @@ func main() {
 	cfg := Config{}
 	cfg.parseFlags(os.Args[1:])
 
-	if err := run(&cfg); err != nil {
+	if err := run(&cfg, logger); err != nil {
 		logger.Error("application startup", "error", err)
 		os.Exit(1)
 	}
 }
 
-func run(cfg *Config) (err error) {
+func run(cfg *Config, logger *slog.Logger) (err error) {
 	srv := http.NewServer()
 	srv.Addr = cfg.http.addr
-
-	db := postgres.NewDB(
-		cfg.pgDB.dsn,
-	)
 
 	maxIdleTime, err := time.ParseDuration(cfg.pgDB.maxIdleTime)
 	if err != nil {
 		return fmt.Errorf("invalid db-max-idle-time: %w", err)
 	}
-	if err := db.Open(
+	db, err := postgres.Open(
+		cfg.pgDB.dsn,
 		postgres.WithMaxOpenConns(cfg.pgDB.maxOpenConns),
 		postgres.WithMaxIdleConns(cfg.pgDB.maxIdleConns),
 		postgres.WithMaxIdleTime(maxIdleTime),
-	); err != nil {
-		return fmt.Errorf("opening database connection: %w", err)
+	)
+	if err != nil {
+		return fmt.Errorf("connecting to a database: %w", err)
 	}
 	defer func() {
-		dbErr := db.Close()
-		if dbErr != nil {
-			err = fmt.Errorf("closing DB connection: %w", dbErr)
+		if dbErr := db.Close(); dbErr != nil {
+			err = multierr.Join(fmt.Errorf("closing a database connection: %w", dbErr), err)
 		}
-		err = errors.Join(err, dbErr)
 	}()
+
+	logger.Debug("database connection established")
 
 	srv.MovieService = postgres.NewMovieService(db)
 
-	srvErr := srv.Start()
-	return fmt.Errorf("starting HTTP server: %w", srvErr)
+	srvErr := srv.Open()
+	if srvErr != nil {
+		return fmt.Errorf("starting an HTTP server: %w", srvErr)
+	}
+	return nil
 }
 
 func newLogger() *slog.Logger {
-	opts := slog.HandlerOptions{AddSource: true, Level: slog.LevelDebug}
+	opts := slog.HandlerOptions{Level: slog.LevelDebug}
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &opts)).With("module", "app")
 
 	return logger

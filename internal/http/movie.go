@@ -13,6 +13,7 @@ func (s *Server) registerMovieHandlers() {
 	s.router.HandleFunc("POST /v1/movies", s.handleMovieCreate)
 }
 
+// handleMovieGet handles requests to get a specified movie.
 func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.PathValue("id"))
 	if err != nil || id < 0 {
@@ -31,6 +32,7 @@ func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleMovieCreate handles requests to create a movie.
 func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Title   string    `json:"title"`
@@ -44,10 +46,10 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	m := &greenlight.Movie{
-		Title:   req.Title,
-		Year:    req.Year,
-		Runtime: req.Runtime,
-		Genres:  req.Genres,
+		Title:       req.Title,
+		ReleaseDate: req.Year,
+		Runtime:     req.Runtime,
+		Genres:      req.Genres,
 	}
 	if err := m.Valid(); err != nil {
 		s.Error(w, r, http.StatusBadRequest, ErrorResponse{Msg: "Validation failure", err: err})

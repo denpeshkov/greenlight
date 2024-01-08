@@ -29,5 +29,5 @@ docker-build: ## build and run app in Docker Compose
 .PHONY: run
 run: ## build and run app
 	go vet ./...
-	go build -race -o ./bin/greenlight ./cmd
-	- ./bin/greenlight -addr=:8080
+	go build -race -o ./bin/greenlight ./cmd/greenlight
+	./bin/greenlight -addr=:8080

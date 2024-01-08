@@ -2,32 +2,26 @@ package postgres
 
 import "time"
 
-// Options represents a configuration option for PostgreSQL DB.
-type Option func(opts *options) error
+// Option represents a configuration option for PostgreSQL DB.
+type Option func(db *DB)
 
-type options struct {
-	maxOpenConns int
-	maxIdleConns int
-	maxIdleTime  time.Duration
-}
-
+// WithMaxOpenConns sets the maximum number of open connections to the database.
 func WithMaxOpenConns(maxOpenConns int) Option {
-	return func(opts *options) error {
-		opts.maxOpenConns = maxOpenConns
-		return nil
+	return func(db *DB) {
+		db.db.SetMaxOpenConns(maxOpenConns)
 	}
 }
 
+// WithMaxIdleConns sets the maximum number of connections in the idle connection pool.
 func WithMaxIdleConns(maxIdleConns int) Option {
-	return func(opts *options) error {
-		opts.maxIdleConns = maxIdleConns
-		return nil
+	return func(db *DB) {
+		db.db.SetMaxIdleConns(maxIdleConns)
 	}
 }
 
+// WithConnMaxIdleTime sets the maximum amount of time a connection may be idle.
 func WithMaxIdleTime(maxIdleTime time.Duration) Option {
-	return func(opts *options) error {
-		opts.maxIdleTime = maxIdleTime
-		return nil
+	return func(db *DB) {
+		db.db.SetConnMaxIdleTime(maxIdleTime)
 	}
 }

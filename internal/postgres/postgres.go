@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"time"
+
+	"github.com/denpeshkov/greenlight/internal/multierr"
 )
 
 // DB represents the database connection.
@@ -20,51 +22,48 @@ type DB struct {
 	logger *slog.Logger
 }
 
-// NewDB returns a new instance of [DB].
-func NewDB(dsn string) *DB {
-	db := &DB{
+// Open returns a new instance of an established database connection.
+func Open(dsn string, opts ...Option) (db *DB, err error) {
+	if dsn == "" {
+		return nil, errors.New("data source name (DSN) required")
+	}
+
+	db = &DB{
 		DSN:    dsn,
 		logger: newLogger(),
 	}
-	db.ctx, db.cancel = context.WithTimeout(context.Background(), 10*time.Second)
-
-	return db
-}
-
-// Open opens the database connection.
-func (db *DB) Open(opts ...Option) (err error) {
-	if db.DSN == "" {
-		return errors.New("data source name (DSN) required")
-	}
+	db.ctx, db.cancel = context.WithTimeout(context.Background(), 5*time.Second)
 
 	if db.db, err = sql.Open("postgres", db.DSN); err != nil {
-		return err
+		return nil, err
 	}
 
-	var options options
-	for _, o := range opts {
-		o(&options)
+	// apply options
+	for _, opt := range opts {
+		opt(db)
 	}
-	db.db.SetMaxOpenConns(options.maxOpenConns)
-	db.db.SetMaxIdleConns(options.maxIdleConns)
-	db.db.SetConnMaxIdleTime(options.maxIdleTime)
 
 	if err = db.db.PingContext(db.ctx); err != nil {
-		return err
+		return nil, err
 	}
+	err = db.Migrate(UP)
 
-	db.logger.Debug("database connection established")
-
-	return nil
+	return db, err
 }
 
+// Close gracefully shuts down the database.
 func (db *DB) Close() error {
+	db.logger.Debug("database shutdown")
+
 	db.cancel()
-	return db.db.Close()
+	err := db.Migrate(DOWN)
+	err2 := db.db.Close()
+	return multierr.Join(err2, err)
 }
 
+// newLogger returns a database logger.
 func newLogger() *slog.Logger {
-	opts := slog.HandlerOptions{AddSource: true}
+	opts := slog.HandlerOptions{Level: slog.LevelDebug}
 	handler := slog.NewJSONHandler(os.Stderr, &opts)
 
 	logger := slog.New(handler).With("module", "postgres")

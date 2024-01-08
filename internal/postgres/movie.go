@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"errors"
 	"log/slog"
 
 	greenlight "github.com/denpeshkov/greenlight/internal"
@@ -21,11 +22,9 @@ func NewMovieService(db *DB) *MovieService {
 }
 
 func (s *MovieService) Movie(id int) (*greenlight.Movie, error) {
-	s.logger.Error("not implemented")
-	return &greenlight.Movie{}, nil
+	return nil, errors.New("not implemented")
 }
 
 func (s *MovieService) CreateMovie(m *greenlight.Movie) error {
-	s.logger.Error("not implemented")
-	return nil
+	return errors.New("not implemented")
 }

@@ -1,18 +1,18 @@
 package http
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
 // Error responds with an error and specified status code.
 func (s *Server) Error(w http.ResponseWriter, r *http.Request, statusCode int, errResp ErrorResponse) {
-	s.logger.Error(errResp.Msg, "method", r.Method, "path", r.URL.Path, "error", errResp.err)
+	logger := s.logger.With("method", r.Method, "path", r.URL.Path)
+	logger.Error(fmt.Sprintf("end user error message: %s", errResp.Msg), "error", errResp.err)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(errResp); err != nil {
-		s.logger.Error("error processing an error response", "error", err)
+	// In case of an error send a 500 Internal Server Error status code with an empty body
+	if err := s.sendResponse(w, r, statusCode, errResp); err != nil {
+		logger.Error("sending error response to user", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
@@ -20,6 +20,6 @@ func (s *Server) Error(w http.ResponseWriter, r *http.Request, statusCode int, e
 // ErrorResponse represents an error for an end user.
 type ErrorResponse struct {
 	// Msg is an error message for an end user.
-	Msg string `json:"error,omitempty"`
+	Msg string `json:"error_message,omitempty"`
 	err error  `json:"-"`
 }

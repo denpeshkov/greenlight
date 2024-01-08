@@ -7,11 +7,11 @@ import (
 
 // Movie represents a movie.
 type Movie struct {
-	Id      int       `json:"id"`
-	Title   string    `json:"title"`
-	Year    time.Time `json:"year,omitempty"`
-	Runtime int       `json:"runtime,omitempty"`
-	Genres  []string  `json:"genres,omitempty"`
+	Id          int       `json:"id"`
+	Title       string    `json:"title"`
+	ReleaseDate time.Time `json:"release_date,omitempty"`
+	Runtime     int       `json:"runtime,omitempty"`
+	Genres      []string  `json:"genres,omitempty"`
 }
 
 // Valid returns an error if the validation fails, otherwise nil.
@@ -19,8 +19,8 @@ func (m *Movie) Valid() error {
 	if m.Id < 0 {
 		return errors.New("incorrect ID")
 	}
-	if m.Year.After(time.Now()) {
-		return errors.New("incorrect year")
+	if m.ReleaseDate.After(time.Now()) {
+		return errors.New("incorrect release date")
 	}
 	if m.Runtime <= 0 {
 		return errors.New("incorrect runtime")
