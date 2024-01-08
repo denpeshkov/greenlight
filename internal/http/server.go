@@ -15,9 +15,6 @@ import (
 
 // Server represents an HTTP server.
 type Server struct {
-	// Address to listen on, ":http" if empty.
-	Addr string
-
 	MovieService greenlight.MovieService
 
 	server *http.Server
@@ -42,13 +39,15 @@ func NewServer() *Server {
 // FIXME maybe use options pattern and remove NewServer()
 
 // Open starts an HTTP server.
-func (s *Server) Open() error {
-	s.server.Addr = s.Addr
+func (s *Server) Open(addr string, opts ...Option) error {
+	s.server.Addr = addr
 	s.server.Handler = s
-	s.server.IdleTimeout = time.Minute
-	s.server.ReadTimeout = 10 * time.Second
-	s.server.WriteTimeout = 30 * time.Second
 	s.server.ErrorLog = slog.NewLogLogger(s.logger.Handler(), slog.LevelError)
+
+	// apply options
+	for _, opt := range opts {
+		opt(s)
+	}
 
 	// graceful shutdown
 	shutdownError := make(chan error)
