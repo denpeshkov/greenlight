@@ -43,4 +43,4 @@ bin/
 ._*
 .Trashes
 
-.env
+.env*
