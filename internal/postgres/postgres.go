@@ -22,39 +22,39 @@ type DB struct {
 	logger *slog.Logger
 }
 
-// Open returns a new instance of an established database connection.
-func Open(dsn string, opts ...Option) (db *DB, err error) {
-	if dsn == "" {
-		return nil, errors.New("data source name (DSN) required")
-	}
-
-	db = &DB{
+func NewDB(dsn string) *DB {
+	db := &DB{
 		DSN:    dsn,
 		logger: newLogger(),
 	}
 	db.ctx, db.cancel = context.WithTimeout(context.Background(), 5*time.Second)
 
-	if db.db, err = sql.Open("postgres", db.DSN); err != nil {
-		return nil, err
+	return db
+}
+
+// Open returns a new instance of an established database connection.
+func (db *DB) Open(opts ...Option) (err error) {
+	if db.DSN == "" {
+		return errors.New("data source name (DSN) required")
 	}
 
-	// apply options
+	if db.db, err = sql.Open("postgres", db.DSN); err != nil {
+		return err
+	}
+
+	// Apply options
 	for _, opt := range opts {
 		opt(db)
 	}
 
 	if err = db.db.PingContext(db.ctx); err != nil {
-		return nil, err
+		return err
 	}
-	err = db.Migrate(UP)
-
-	return db, err
+	return db.Migrate(UP)
 }
 
 // Close gracefully shuts down the database.
 func (db *DB) Close() error {
-	db.logger.Debug("database shutdown")
-
 	db.cancel()
 	err := db.Migrate(DOWN)
 	err2 := db.db.Close()

@@ -22,10 +22,6 @@ test/cover: ## Test and cover
 	go test -v -race -buildvcs -coverprofile=./coverage.out ./...
 	go tool cover -html=./coverage.out
 
-.PHONY: docker-run
-docker-build: ## build and run app in Docker Compose
-	@docker build -t denpeshkov/greenlight .
-
 .PHONY: run
 run: ## build and run app
 	go vet ./...

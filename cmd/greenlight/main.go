@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/denpeshkov/greenlight/internal/http"
@@ -32,6 +34,71 @@ type Config struct {
 	}
 }
 
+func main() {
+	logger := newLogger()
+
+	cfg := Config{}
+	err := cfg.parseFlags(os.Args[1:])
+	if err != nil {
+		logger.Error("flags parsing error: %w", err)
+	}
+
+	if err := run(&cfg, logger); err != nil {
+		logger.Error("application error", "error", err)
+		os.Exit(1)
+	}
+}
+
+// run executes the program.
+func run(cfg *Config, logger *slog.Logger) error {
+	db := postgres.NewDB(cfg.pgDB.dsn)
+	srv := http.NewServer(cfg.http.addr)
+
+	// Application graceful shutdown
+	shutdownErr := make(chan error)
+	go func() {
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+		<-quit
+		logger.Debug("shutting down HTTP server")
+		shutdownErr <- srv.Close()
+
+		logger.Debug("shutting down database")
+		shutdownErr <- db.Close()
+	}()
+
+	// Setting up DB
+	err := db.Open(
+		postgres.WithMaxOpenConns(cfg.pgDB.maxOpenConns),
+		postgres.WithMaxIdleConns(cfg.pgDB.maxIdleConns),
+		postgres.WithMaxIdleTime(cfg.pgDB.maxIdleTime),
+	)
+	if err != nil {
+		return fmt.Errorf("connecting to a database: %w", err)
+	}
+	logger.Debug("database connection established")
+
+	// Setting up HTTP server
+	srv.MovieService = postgres.NewMovieService(db)
+
+	err = srv.Open(
+		http.WithIdleTimeout(cfg.http.idleTimeout),
+		http.WithReadTimeout(cfg.http.readTimeout),
+		http.WithWriteTimeout(cfg.http.writeTimeout),
+	)
+	if err != nil {
+		return fmt.Errorf("HTTP server serve: %w", err)
+	}
+
+	// Handle graceful shutdown
+	srvErr := <-shutdownErr
+	dbErr := <-shutdownErr
+
+	logger.Debug("Errors from shutdown", "srvErr==nil", srvErr == nil, "dbErr==nil", dbErr == nil)
+	return multierr.Join(srvErr, dbErr)
+}
+
 func (c *Config) parseFlags(args []string) error {
 	fs := flag.NewFlagSet("greenlight", flag.ExitOnError)
 	// HTTP
@@ -47,54 +114,6 @@ func (c *Config) parseFlags(args []string) error {
 	fs.DurationVar(&c.pgDB.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
 
 	return fs.Parse(args)
-}
-
-func main() {
-	logger := newLogger()
-
-	cfg := Config{}
-	err := cfg.parseFlags(os.Args[1:])
-	if err != nil {
-		logger.Error("flags parsing error: %w", err)
-	}
-
-	if err := run(&cfg, logger); err != nil {
-		logger.Error("application startup", "error", err)
-		os.Exit(1)
-	}
-}
-
-func run(cfg *Config, logger *slog.Logger) (err error) {
-	srv := http.NewServer()
-	db, err := postgres.Open(
-		cfg.pgDB.dsn,
-		postgres.WithMaxOpenConns(cfg.pgDB.maxOpenConns),
-		postgres.WithMaxIdleConns(cfg.pgDB.maxIdleConns),
-		postgres.WithMaxIdleTime(cfg.pgDB.maxIdleTime),
-	)
-	if err != nil {
-		return fmt.Errorf("connecting to a database: %w", err)
-	}
-	defer func() {
-		if dbErr := db.Close(); dbErr != nil {
-			err = multierr.Join(fmt.Errorf("closing a database connection: %w", dbErr), err)
-		}
-	}()
-
-	logger.Debug("database connection established", "dsn", cfg.pgDB.dsn)
-
-	srv.MovieService = postgres.NewMovieService(db)
-
-	srvErr := srv.Open(
-		cfg.http.addr,
-		http.WithIdleTimeout(cfg.http.idleTimeout),
-		http.WithReadTimeout(cfg.http.readTimeout),
-		http.WithWriteTimeout(cfg.http.writeTimeout),
-	)
-	if srvErr != nil {
-		return fmt.Errorf("starting an HTTP server: %w", srvErr)
-	}
-	return nil
 }
 
 func newLogger() *slog.Logger {

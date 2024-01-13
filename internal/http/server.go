@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	greenlight "github.com/denpeshkov/greenlight/internal"
@@ -23,12 +21,13 @@ type Server struct {
 }
 
 // NewServer returns a new instance of [Server].
-func NewServer() *Server {
+func NewServer(addr string) *Server {
 	s := &Server{
 		logger: newLogger(),
 		server: &http.Server{},
 		router: http.NewServeMux(),
 	}
+	s.server.Addr = addr
 
 	s.registerHealthCheckHandlers()
 	s.registerMovieHandlers()
@@ -39,43 +38,24 @@ func NewServer() *Server {
 // FIXME maybe use options pattern and remove NewServer()
 
 // Open starts an HTTP server.
-func (s *Server) Open(addr string, opts ...Option) error {
-	s.server.Addr = addr
+func (s *Server) Open(opts ...Option) error {
 	s.server.Handler = s
 	s.server.ErrorLog = slog.NewLogLogger(s.logger.Handler(), slog.LevelError)
 
-	// apply options
+	// Apply options
 	for _, opt := range opts {
 		opt(s)
 	}
-
-	// graceful shutdown
-	shutdownError := make(chan error)
-	go func() {
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-		<-quit
-
-		shutdownError <- s.Close()
-	}()
 
 	err := s.server.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
-
-	err = <-shutdownError
-	if err != nil {
-		return err
-	}
-
-	return err
+	return nil
 }
 
 // Close gracefully shuts down the server.
 func (s *Server) Close() error {
-	s.logger.Info("HTTP server shutdown")
-
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	return s.server.Shutdown(ctx)

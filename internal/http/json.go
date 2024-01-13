@@ -21,5 +21,8 @@ func (s *Server) sendResponse(w http.ResponseWriter, r *http.Request, status int
 // readRequest decodes a JSON request body to the dst value.
 func (s *Server) readRequest(w http.ResponseWriter, r *http.Request, dst any) error {
 	err := json.NewDecoder(r.Body).Decode(&dst)
-	return fmt.Errorf("unmarshalling request to JSON: %w", err)
+	if err != nil {
+		return fmt.Errorf("unmarshalling request to JSON: %w", err)
+	}
+	return nil
 }

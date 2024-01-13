@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 ARG GO_VERSION=1.22-rc
 
-FROM golang:${GO_VERSION}-alpine AS deps
+FROM golang:${GO_VERSION} AS deps
 ENV GOMODCACHE=/go/pkg/mod/
 ENV GOCACHE=/.cache/go-build/
 WORKDIR /src

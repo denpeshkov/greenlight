@@ -84,6 +84,7 @@ func (db *DB) migrateUp(names []string, version int) (int, error) {
 		if err := db.migrateFile(name); err != nil {
 			return version, fmt.Errorf("migration UP [%s]: %w", name, err)
 		}
+		db.logger.Debug("database migration", "migration_type", "UP", "file", name)
 		version++
 	}
 	return version, nil
@@ -95,6 +96,7 @@ func (db *DB) migrateDown(names []string, version int) (int, error) {
 		if err := db.migrateFile(name); err != nil {
 			return version, fmt.Errorf("migration DOWN [%s]: %w", name, err)
 		}
+		db.logger.Debug("database migration", "migration_type", "DOWN", "file", name)
 		version--
 	}
 	return version, nil
@@ -108,8 +110,6 @@ func (db *DB) migrateFile(name string) error {
 	} else if _, err = db.db.Exec(string(buf)); err != nil {
 		return err
 	}
-
-	db.logger.Debug("database migration", "file", name)
 
 	return nil
 }
