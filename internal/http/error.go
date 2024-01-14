@@ -11,7 +11,7 @@ func (s *Server) Error(w http.ResponseWriter, r *http.Request, statusCode int, e
 	logger.Error(fmt.Sprintf("end user error message: %s", errResp.Msg), "error", errResp.err)
 
 	// In case of an error send a 500 Internal Server Error status code with an empty body
-	if err := s.sendResponse(w, r, statusCode, errResp); err != nil {
+	if err := s.sendResponse(w, r, statusCode, errResp, nil); err != nil {
 		logger.Error("sending error response to user", "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}

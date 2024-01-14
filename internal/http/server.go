@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	greenlight "github.com/denpeshkov/greenlight/internal"
+	"github.com/denpeshkov/greenlight/internal/greenlight"
 )
 
 // Server represents an HTTP server.
