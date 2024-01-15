@@ -19,13 +19,15 @@ func (m *Movie) Valid() error {
 	if m.ID < 0 {
 		return errors.New("incorrect ID")
 	}
+
 	t, err := time.Parse(time.DateOnly, "1800-01-01")
 	if err != nil {
 		return err
 	}
 	if m.ReleaseDate.After(time.Now()) || m.ReleaseDate.Before(t) {
-		return errors.New("incorrect release date")
+		return errors.New("incorrect release_date")
 	}
+
 	if m.Runtime <= 0 {
 		return errors.New("incorrect runtime")
 	}

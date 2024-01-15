@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
@@ -38,7 +37,7 @@ func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Title       string   `json:"title"`
-		ReleaseDate Date     `json:"release_date"`
+		ReleaseDate string   `json:"release_date"`
 		Runtime     int      `json:"runtime"`
 		Genres      []string `json:"genres"`
 	}
@@ -47,9 +46,14 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	date, err := time.Parse(time.DateOnly, req.ReleaseDate)
+	if err != nil {
+		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request: incorrect release_date format", err: err})
+		return
+	}
 	m := &greenlight.Movie{
 		Title:       req.Title,
-		ReleaseDate: time.Time(req.ReleaseDate),
+		ReleaseDate: date,
 		Runtime:     req.Runtime,
 		Genres:      req.Genres,
 	}
@@ -68,25 +72,4 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
 		return
 	}
-}
-
-// Date represents a date in the format "YYYY-MM-DD".
-type Date time.Time
-
-func (d *Date) UnmarshalJSON(b []byte) error {
-	value := strings.Trim(string(b), `"`) //get rid of "
-	if value == "" || value == "null" {
-		return nil
-	}
-
-	t, err := time.Parse(time.DateOnly, value) //parse time
-	if err != nil {
-		return err
-	}
-	*d = Date(t) //set result using the pointer
-	return nil
-}
-
-func (c Date) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + time.Time(c).Format(time.DateOnly) + `"`), nil
 }
