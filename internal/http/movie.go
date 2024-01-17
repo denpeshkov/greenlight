@@ -1,12 +1,14 @@
 package http
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
+	"github.com/denpeshkov/greenlight/internal/postgres"
 )
 
 func (s *Server) registerMovieHandlers() {
@@ -24,7 +26,12 @@ func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 
 	m, err := s.MovieService.GetMovie(id)
 	if err != nil {
-		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
+		switch {
+		case errors.Is(err, postgres.ErrRecordNotFound):
+			s.Error(w, r, http.StatusNotFound, ErrorResponse{Msg: "Movie not found", err: err})
+		default:
+			s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
+		}
 		return
 	}
 	if err := s.sendResponse(w, r, http.StatusOK, m, nil); err != nil {
@@ -48,7 +55,8 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 
 	date, err := time.Parse(time.DateOnly, req.ReleaseDate)
 	if err != nil {
-		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request: incorrect release_date format", err: err})
+		msg := fmt.Sprintf("Error processing request: incorrect release_date: %s", req.ReleaseDate)
+		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: msg, err: err})
 		return
 	}
 	m := &greenlight.Movie{

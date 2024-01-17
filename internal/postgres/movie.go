@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -24,7 +26,19 @@ func NewMovieService(db *DB) *MovieService {
 }
 
 func (s *MovieService) GetMovie(id int) (*greenlight.Movie, error) {
-	panic("not implemented") // TODO: Implement
+	ctx := context.Background()
+	query := `SELECT id, title, release_date, runtime, genres FROM movies WHERE id = $1`
+	args := []any{id}
+	var m greenlight.Movie
+	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres)); err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, fmt.Errorf("no movie with id=%d: %w", id, ErrRecordNotFound)
+		default:
+			return nil, fmt.Errorf("get movie record by id=%d: %w", id, err)
+		}
+	}
+	return &m, nil
 }
 
 func (s *MovieService) UpdateMovie(m *greenlight.Movie) error {
