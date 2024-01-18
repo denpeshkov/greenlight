@@ -20,10 +20,12 @@ import (
 type Config struct {
 	// HTTP server
 	http struct {
-		addr         string
-		idleTimeout  time.Duration
-		readTimeout  time.Duration
-		writeTimeout time.Duration
+		addr            string
+		idleTimeout     time.Duration
+		readTimeout     time.Duration
+		writeTimeout    time.Duration
+		shutdownTimeout time.Duration
+		maxRequestBody  int64
 	}
 	// PostgreSQL database
 	pgDB struct {
@@ -86,6 +88,8 @@ func run(cfg *Config, logger *slog.Logger) error {
 		http.WithIdleTimeout(cfg.http.idleTimeout),
 		http.WithReadTimeout(cfg.http.readTimeout),
 		http.WithWriteTimeout(cfg.http.writeTimeout),
+		http.WithShutdownTimeout(cfg.http.shutdownTimeout),
+		http.WithMaxRequestBody(cfg.http.maxRequestBody),
 	)
 	if err != nil {
 		return fmt.Errorf("HTTP server serve: %w", err)
@@ -106,6 +110,8 @@ func (c *Config) parseFlags(args []string) error {
 	fs.DurationVar(&c.http.idleTimeout, "http-idle-timeout", time.Minute, "HTTP server idle timeout")
 	fs.DurationVar(&c.http.readTimeout, "http-read-timeout", 10*time.Second, "HTTP server read timeout")
 	fs.DurationVar(&c.http.writeTimeout, "http-write-timeout", 30*time.Second, "HTTP server write timeout")
+	fs.DurationVar(&c.http.shutdownTimeout, "http-shutdown-timeout", 20*time.Second, "HTTP server shutdown timeout")
+	fs.Int64Var(&c.http.maxRequestBody, "http-max-request-body", 1_048_576, "Maximum HTTP request body size in bytes")
 
 	//PostgreSQL
 	fs.StringVar(&c.pgDB.dsn, "dsn", os.Getenv("POSTGRES_DSN"), "PostgreSQL DSN")

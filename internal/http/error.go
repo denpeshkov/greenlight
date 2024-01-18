@@ -5,6 +5,10 @@ import (
 	"net/http"
 )
 
+var (
+	InternalServerError = ErrorResponse{}
+)
+
 // Error responds with an error and specified status code.
 func (s *Server) Error(w http.ResponseWriter, r *http.Request, statusCode int, errResp ErrorResponse) {
 	logger := s.logger.With("method", r.Method, "path", r.URL.Path)

@@ -36,8 +36,8 @@ func (m *Movie) Valid() error {
 
 // MovieService is a service for managing movies.
 type MovieService interface {
-	GetMovie(id int) (*Movie, error)
+	GetMovie(id int64) (*Movie, error)
 	CreateMovie(m *Movie) error
 	UpdateMovie(m *Movie) error
-	DeleteMovie(id int) error
+	//DeleteMovie(id int64) error
 }

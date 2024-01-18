@@ -15,6 +15,8 @@ import (
 type Server struct {
 	MovieService greenlight.MovieService
 
+	opts options
+
 	server *http.Server
 	router *http.ServeMux
 	logger *slog.Logger
@@ -22,10 +24,20 @@ type Server struct {
 
 // NewServer returns a new instance of [Server].
 func NewServer(addr string) *Server {
+	// default options
+	defOpts := options{
+		IdleTimeout:     time.Minute,
+		ReadTimeout:     10 * time.Second,
+		WriteTimeout:    30 * time.Second,
+		ShutdownTimeout: 20 * time.Second,
+		MaxRequestBody:  1_048_576, // 1 Mb
+	}
+
 	s := &Server{
-		logger: newLogger(),
+		opts:   defOpts,
 		server: &http.Server{},
 		router: http.NewServeMux(),
+		logger: newLogger(),
 	}
 	s.server.Addr = addr
 
@@ -44,7 +56,7 @@ func (s *Server) Open(opts ...Option) error {
 
 	// Apply options
 	for _, opt := range opts {
-		opt(s)
+		opt(&s.opts)
 	}
 
 	err := s.server.ListenAndServe()
@@ -56,7 +68,7 @@ func (s *Server) Open(opts ...Option) error {
 
 // Close gracefully shuts down the server.
 func (s *Server) Close() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), s.opts.ShutdownTimeout)
 	defer cancel()
 	return s.server.Shutdown(ctx)
 }

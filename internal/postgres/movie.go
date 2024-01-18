@@ -25,7 +25,7 @@ func NewMovieService(db *DB) *MovieService {
 	}
 }
 
-func (s *MovieService) GetMovie(id int) (*greenlight.Movie, error) {
+func (s *MovieService) GetMovie(id int64) (*greenlight.Movie, error) {
 	ctx := context.Background()
 	query := `SELECT id, title, release_date, runtime, genres FROM movies WHERE id = $1`
 	args := []any{id}
@@ -33,7 +33,7 @@ func (s *MovieService) GetMovie(id int) (*greenlight.Movie, error) {
 	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres)); err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, fmt.Errorf("no movie with id=%d: %w", id, ErrRecordNotFound)
+			return nil, fmt.Errorf("no movie with id=%d: %w", id, greenlight.ErrNotFound)
 		default:
 			return nil, fmt.Errorf("get movie record by id=%d: %w", id, err)
 		}
@@ -42,10 +42,16 @@ func (s *MovieService) GetMovie(id int) (*greenlight.Movie, error) {
 }
 
 func (s *MovieService) UpdateMovie(m *greenlight.Movie) error {
-	panic("not implemented") // TODO: Implement
+	ctx := context.Background()
+	query := `UPDATE movies SET (title, release_date, runtime, genres) = ($1, $2, $3, $4) WHERE id = $5`
+	args := []any{m.Title, m.ReleaseDate, m.Runtime, pq.Array(m.Genres), m.ID}
+	if _, err := s.db.db.ExecContext(ctx, query, args...); err != nil {
+		return fmt.Errorf("update movie record by id=%d: %w", m.ID, err)
+	}
+	return nil
 }
 
-func (s *MovieService) DeleteMovie(id int) error {
+func (s *MovieService) DeleteMovie(id int64) error {
 	panic("not implemented") // TODO: Implement
 }
 
