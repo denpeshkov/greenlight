@@ -13,6 +13,7 @@ import (
 	"github.com/denpeshkov/greenlight/internal/http"
 	"github.com/denpeshkov/greenlight/internal/multierr"
 	"github.com/denpeshkov/greenlight/internal/postgres"
+
 	_ "github.com/lib/pq"
 )
 

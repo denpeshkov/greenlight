@@ -15,13 +15,14 @@ func (s *Server) registerMovieHandlers() {
 	s.router.HandleFunc("GET /v1/movies/{id}", s.handleMovieGet)
 	s.router.HandleFunc("POST /v1/movies", s.handleMovieCreate)
 	s.router.HandleFunc("PUT /v1/movies/{id}", s.handleMovieUpdate)
+	s.router.HandleFunc("DELETE /v1/movies/{id}", s.handleMovieDelete)
 }
 
 // handleMovieGet handles requests to get a specified movie.
 func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil || id < 0 {
-		s.Error(w, r, http.StatusBadRequest, ErrorResponse{Msg: "Incorrect ID parameter", err: err})
+		s.Error(w, r, http.StatusNotFound, ErrorResponse{Msg: "No movie with the given ID was found", err: err})
 		return
 	}
 
@@ -81,7 +82,7 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil || id < 0 {
-		s.Error(w, r, http.StatusBadRequest, ErrorResponse{Msg: "Incorrect ID parameter", err: err})
+		s.Error(w, r, http.StatusNotFound, ErrorResponse{Msg: "No movie with the given ID was found", err: err})
 		return
 	}
 
@@ -113,6 +114,31 @@ func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.sendResponse(w, r, http.StatusOK, m, nil); err != nil {
+		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
+		return
+	}
+}
+
+// handleMovieDelete handles requests to delete a specified movie.
+func (s *Server) handleMovieDelete(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id < 0 {
+		s.Error(w, r, http.StatusNotFound, ErrorResponse{Msg: "No movie with the given ID was found", err: err})
+		return
+	}
+
+	err = s.MovieService.DeleteMovie(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, greenlight.ErrNotFound):
+			s.Error(w, r, http.StatusNotFound, ErrorResponse{Msg: "Movie not found", err: err})
+		default:
+			s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
+		}
+		return
+	}
+
+	if err := s.sendResponse(w, r, http.StatusNoContent, nil, nil); err != nil {
 		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
 		return
 	}

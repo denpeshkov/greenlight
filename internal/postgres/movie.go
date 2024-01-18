@@ -52,7 +52,23 @@ func (s *MovieService) UpdateMovie(m *greenlight.Movie) error {
 }
 
 func (s *MovieService) DeleteMovie(id int64) error {
-	panic("not implemented") // TODO: Implement
+	ctx := context.Background()
+	query := `DELETE FROM movies where id = $1`
+	args := []any{id}
+	rs, err := s.db.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("delete movie record by id=%d: %w", id, err)
+	}
+
+	n, err := rs.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete movie record by id=%d: %w", id, err)
+	}
+	if n == 0 {
+		return fmt.Errorf("no movie with id=%d: %w", id, greenlight.ErrNotFound)
+	}
+
+	return nil
 }
 
 func (s *MovieService) CreateMovie(m *greenlight.Movie) error {

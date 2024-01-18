@@ -31,6 +31,10 @@ func (m *Movie) Valid() error {
 	if m.Runtime <= 0 {
 		return errors.New("incorrect runtime")
 	}
+
+	if len(m.Genres) == 0 {
+		return errors.New("incorrect genres")
+	}
 	return nil
 }
 
@@ -39,5 +43,5 @@ type MovieService interface {
 	GetMovie(id int64) (*Movie, error)
 	CreateMovie(m *Movie) error
 	UpdateMovie(m *Movie) error
-	//DeleteMovie(id int64) error
+	DeleteMovie(id int64) error
 }
