@@ -1,11 +1,10 @@
 package http
 
 import (
-	"errors"
+	"bytes"
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
@@ -20,24 +19,46 @@ func (s *Server) registerMovieHandlers() {
 
 // handleMovieGet handles requests to get a specified movie.
 func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
+	op := "Server.handleMovieGet"
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil || id < 0 {
-		s.Error(w, r, http.StatusNotFound, ErrorResponse{Msg: "No movie with the given ID was found", err: err})
+		s.Error(w, r, &greenlight.Error{
+			Op:   op,
+			Code: greenlight.ErrNotFound,
+			Msg:  "No movie with the given ID was found.",
+			Err:  err,
+		})
 		return
 	}
 
 	m, err := s.MovieService.GetMovie(id)
 	if err != nil {
 		switch {
-		case errors.Is(err, greenlight.ErrNotFound):
-			s.Error(w, r, http.StatusNotFound, ErrorResponse{Msg: "Movie not found", err: err})
+		case greenlight.ErrorCode(err) == greenlight.ErrNotFound:
+			s.Error(w, r, &greenlight.Error{
+				Op:   op,
+				Code: greenlight.ErrNotFound,
+				Msg:  "Movie not found.",
+				Err:  err,
+			})
 		default:
-			s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
+			s.Error(w, r, &greenlight.Error{
+				Op:   op,
+				Code: greenlight.ErrInternal,
+				Msg:  "Error processing request.",
+				Err:  err,
+			})
 		}
+		s.Error(w, r, err)
 		return
 	}
 	if err := s.sendResponse(w, r, http.StatusOK, m, nil); err != nil {
-		s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
+		s.Error(w, r, &greenlight.Error{
+			Op:   op,
+			Code: greenlight.ErrInternal,
+			Msg:  "Error processing request.",
+			Err:  err,
+		})
 		return
 	}
 }
@@ -61,7 +82,7 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 		Runtime:     req.Runtime,
 		Genres:      req.Genres,
 	}
-	if err := m.Valid(); err != nil {
+	if err := m.Valid(); greenlight.ErrorCode(err) == greenlight.ErrInvalid {
 		s.Error(w, r, http.StatusUnprocessableEntity, ErrorResponse{Msg: "Validation failure", err: err})
 		return
 	}
@@ -130,7 +151,7 @@ func (s *Server) handleMovieDelete(w http.ResponseWriter, r *http.Request) {
 	err = s.MovieService.DeleteMovie(id)
 	if err != nil {
 		switch {
-		case errors.Is(err, greenlight.ErrNotFound):
+		case greenlight.ErrorCode(err) == greenlight.ErrNotFound:
 			s.Error(w, r, http.StatusNotFound, ErrorResponse{Msg: "Movie not found", err: err})
 		default:
 			s.Error(w, r, http.StatusInternalServerError, ErrorResponse{Msg: "Error processing request", err: err})
@@ -148,7 +169,7 @@ func (s *Server) handleMovieDelete(w http.ResponseWriter, r *http.Request) {
 type date time.Time
 
 func (d *date) UnmarshalJSON(b []byte) error {
-	value := strings.Trim(string(b), `"`) // get rid of "
+	value := string(bytes.Trim(b, `"`)) // get rid of "
 	if value == "" || value == "null" {
 		return nil
 	}
