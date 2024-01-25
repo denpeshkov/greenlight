@@ -12,14 +12,13 @@ type joinError []error
 // If any of the passed errors is a [MultiError] error, it will be flattened along with the other errors.
 func Join(errs ...error) error {
 	var mErrs []error
-	for _, err := range errs {
-		if err == nil {
+	for _, e := range errs {
+		switch err := e.(type) {
+		case nil:
 			continue
-		}
-
-		if nested, ok := err.(joinError); ok {
-			mErrs = append(mErrs, nested...)
-		} else {
+		case joinError:
+			mErrs = append(mErrs, err...)
+		default:
 			mErrs = append(mErrs, err)
 		}
 	}
@@ -40,14 +39,14 @@ func (e joinError) Error() string {
 		return ""
 	}
 
-	var buf bytes.Buffer
+	var b bytes.Buffer
 	for i, err := range e {
 		if i != 0 {
-			buf.WriteString("; ")
+			b.WriteString("; ")
 		}
-		buf.WriteString(err.Error())
+		b.WriteString(err.Error())
 	}
-	return buf.String()
+	return b.String()
 }
 
 // Unwrap returns this and all the wrapped errors.

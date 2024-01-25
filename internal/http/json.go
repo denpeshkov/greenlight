@@ -28,7 +28,7 @@ func (s *Server) sendResponse(w http.ResponseWriter, r *http.Request, status int
 
 // readRequest decodes a JSON request body to the dst value.
 func (s *Server) readRequest(w http.ResponseWriter, r *http.Request, dst any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, s.opts.MaxRequestBody)
+	r.Body = http.MaxBytesReader(w, r.Body, s.opts.maxRequestBody)
 
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()

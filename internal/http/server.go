@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
 )
@@ -23,23 +22,18 @@ type Server struct {
 }
 
 // NewServer returns a new instance of [Server].
-func NewServer(addr string) *Server {
-	// default options
-	defOpts := options{
-		IdleTimeout:     time.Minute,
-		ReadTimeout:     10 * time.Second,
-		WriteTimeout:    30 * time.Second,
-		ShutdownTimeout: 20 * time.Second,
-		MaxRequestBody:  1_048_576, // 1 Mb
-	}
-
+func NewServer(addr string, opts ...Option) *Server {
 	s := &Server{
-		opts:   defOpts,
 		server: &http.Server{},
 		router: http.NewServeMux(),
 		logger: newLogger(),
 	}
 	s.server.Addr = addr
+
+	// Apply options
+	for _, opt := range opts {
+		opt(&s.opts)
+	}
 
 	s.registerHealthCheckHandlers()
 	s.registerMovieHandlers()
@@ -47,17 +41,14 @@ func NewServer(addr string) *Server {
 	return s
 }
 
-// FIXME maybe use options pattern and remove NewServer()
-
-// Open starts an HTTP server.
-func (s *Server) Open(opts ...Option) error {
+// Start starts an HTTP server.
+func (s *Server) Start() error {
 	s.server.Handler = s
 	s.server.ErrorLog = slog.NewLogLogger(s.logger.Handler(), slog.LevelError)
 
-	// Apply options
-	for _, opt := range opts {
-		opt(&s.opts)
-	}
+	s.server.IdleTimeout = s.opts.idleTimeout
+	s.server.ReadTimeout = s.opts.readTimeout
+	s.server.WriteTimeout = s.opts.writeTimeout
 
 	err := s.server.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
@@ -68,7 +59,7 @@ func (s *Server) Open(opts ...Option) error {
 
 // Close gracefully shuts down the server.
 func (s *Server) Close() error {
-	ctx, cancel := context.WithTimeout(context.Background(), s.opts.ShutdownTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), s.opts.shutdownTimeout)
 	defer cancel()
 	return s.server.Shutdown(ctx)
 }

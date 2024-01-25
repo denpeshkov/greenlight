@@ -7,44 +7,44 @@ type Option func(o *options)
 
 // options represents all server options.
 type options struct {
-	IdleTimeout     time.Duration
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	ShutdownTimeout time.Duration
-	MaxRequestBody  int64
+	idleTimeout     time.Duration
+	readTimeout     time.Duration
+	writeTimeout    time.Duration
+	shutdownTimeout time.Duration
+	maxRequestBody  int64
 }
 
 // WithIdleTimeout sets the idle timeout.
 func WithIdleTimeout(t time.Duration) Option {
 	return func(o *options) {
-		o.IdleTimeout = t
+		o.idleTimeout = t
 	}
 }
 
 // WithReadTimeout sets the read timeout.
 func WithReadTimeout(t time.Duration) Option {
 	return func(o *options) {
-		o.ReadTimeout = t
+		o.readTimeout = t
 	}
 }
 
 // WithWriteTimeout sets the write timeout.
 func WithWriteTimeout(t time.Duration) Option {
 	return func(o *options) {
-		o.WriteTimeout = t
+		o.writeTimeout = t
 	}
 }
 
 // WithShutdownTimeout sets the shutdown timeout.
 func WithShutdownTimeout(t time.Duration) Option {
 	return func(o *options) {
-		o.ShutdownTimeout = t
+		o.shutdownTimeout = t
 	}
 }
 
 // WithMaxRequestBody sets the maximum size of the request body in bytes.
 func WithMaxRequestBody(sz int64) Option {
 	return func(o *options) {
-		o.MaxRequestBody = sz
+		o.maxRequestBody = sz
 	}
 }

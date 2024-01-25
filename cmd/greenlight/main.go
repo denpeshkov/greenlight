@@ -34,6 +34,7 @@ type Config struct {
 		maxOpenConns int
 		maxIdleConns int
 		maxIdleTime  time.Duration
+		ctxTimeout   time.Duration
 	}
 }
 
@@ -54,8 +55,21 @@ func main() {
 
 // run executes the program.
 func run(cfg *Config, logger *slog.Logger) error {
-	db := postgres.NewDB(cfg.pgDB.dsn)
-	srv := http.NewServer(cfg.http.addr)
+	db := postgres.NewDB(
+		cfg.pgDB.dsn,
+		postgres.WithMaxOpenConns(cfg.pgDB.maxOpenConns),
+		postgres.WithMaxIdleConns(cfg.pgDB.maxIdleConns),
+		postgres.WithMaxIdleTime(cfg.pgDB.maxIdleTime),
+		postgres.WithContextTimeout(cfg.pgDB.ctxTimeout),
+	)
+	srv := http.NewServer(
+		cfg.http.addr,
+		http.WithIdleTimeout(cfg.http.idleTimeout),
+		http.WithReadTimeout(cfg.http.readTimeout),
+		http.WithWriteTimeout(cfg.http.writeTimeout),
+		http.WithShutdownTimeout(cfg.http.shutdownTimeout),
+		http.WithMaxRequestBody(cfg.http.maxRequestBody),
+	)
 
 	// Application graceful shutdown
 	shutdownErr := make(chan error)
@@ -72,26 +86,17 @@ func run(cfg *Config, logger *slog.Logger) error {
 	}()
 
 	// Setting up DB
-	err := db.Open(
-		postgres.WithMaxOpenConns(cfg.pgDB.maxOpenConns),
-		postgres.WithMaxIdleConns(cfg.pgDB.maxIdleConns),
-		postgres.WithMaxIdleTime(cfg.pgDB.maxIdleTime),
-	)
+	err := db.Open()
 	if err != nil {
 		return fmt.Errorf("connecting to a database: %w", err)
 	}
 	logger.Debug("database connection established")
 
-	// Setting up HTTP server
+	// Setting up services
 	srv.MovieService = postgres.NewMovieService(db)
 
-	err = srv.Open(
-		http.WithIdleTimeout(cfg.http.idleTimeout),
-		http.WithReadTimeout(cfg.http.readTimeout),
-		http.WithWriteTimeout(cfg.http.writeTimeout),
-		http.WithShutdownTimeout(cfg.http.shutdownTimeout),
-		http.WithMaxRequestBody(cfg.http.maxRequestBody),
-	)
+	// Setting up HTTP server
+	err = srv.Start()
 	if err != nil {
 		return fmt.Errorf("HTTP server serve: %w", err)
 	}
@@ -100,7 +105,6 @@ func run(cfg *Config, logger *slog.Logger) error {
 	srvErr := <-shutdownErr
 	dbErr := <-shutdownErr
 
-	logger.Debug("Errors from shutdown", "srvErr==nil", srvErr == nil, "dbErr==nil", dbErr == nil)
 	return multierr.Join(srvErr, dbErr)
 }
 
@@ -119,6 +123,7 @@ func (c *Config) parseFlags(args []string) error {
 	fs.IntVar(&c.pgDB.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	fs.IntVar(&c.pgDB.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	fs.DurationVar(&c.pgDB.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
+	fs.DurationVar(&c.pgDB.ctxTimeout, "db-ctx-timeout", 10*time.Second, "PostgreSQL context timeout")
 
 	return fs.Parse(args)
 }

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/denpeshkov/greenlight/internal/multierr"
 )
@@ -16,24 +15,30 @@ type DB struct {
 	// Data source name.
 	DSN string
 
+	opts options
+
 	db     *sql.DB
 	ctx    context.Context // context
 	cancel func()          // context cancel func
 	logger *slog.Logger
 }
 
-func NewDB(dsn string) *DB {
+func NewDB(dsn string, opts ...Option) *DB {
 	db := &DB{
 		DSN:    dsn,
 		logger: newLogger(),
 	}
-	db.ctx, db.cancel = context.WithTimeout(context.Background(), 5*time.Second)
+
+	// Apply options
+	for _, opt := range opts {
+		opt(&db.opts)
+	}
 
 	return db
 }
 
 // Open returns a new instance of an established database connection.
-func (db *DB) Open(opts ...Option) (err error) {
+func (db *DB) Open() (err error) {
 	if db.DSN == "" {
 		return errors.New("data source name (DSN) required")
 	}
@@ -41,11 +46,7 @@ func (db *DB) Open(opts ...Option) (err error) {
 	if db.db, err = sql.Open("postgres", db.DSN); err != nil {
 		return err
 	}
-
-	// Apply options
-	for _, opt := range opts {
-		opt(db)
-	}
+	db.ctx, db.cancel = context.WithTimeout(context.Background(), db.opts.ctxTimeout)
 
 	if err = db.db.PingContext(db.ctx); err != nil {
 		return err

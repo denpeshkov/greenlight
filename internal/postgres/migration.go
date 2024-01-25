@@ -25,7 +25,7 @@ func (mt MigrationType) String() string {
 }
 
 const (
-	UP MigrationType = iota
+	UP MigrationType = iota + 1
 	DOWN
 )
 
