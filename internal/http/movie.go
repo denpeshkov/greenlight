@@ -13,7 +13,7 @@ import (
 func (s *Server) registerMovieHandlers() {
 	s.router.HandleFunc("GET /v1/movies/{id}", s.handleMovieGet)
 	s.router.HandleFunc("POST /v1/movies", s.handleMovieCreate)
-	s.router.HandleFunc("PUT /v1/movies/{id}", s.handleMovieUpdate)
+	s.router.HandleFunc("PATCH /v1/movies/{id}", s.handleMovieUpdate)
 	s.router.HandleFunc("DELETE /v1/movies/{id}", s.handleMovieDelete)
 }
 
@@ -43,22 +43,22 @@ func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 	op := "http.Server.handleMovieCreate"
 
-	var req struct {
+	var input struct {
 		Title       string   `json:"title"`
 		ReleaseDate date     `json:"release_date"`
 		Runtime     int      `json:"runtime"`
 		Genres      []string `json:"genres"`
 	}
-	if err := s.readRequest(w, r, &req); err != nil {
+	if err := s.readRequest(w, r, &input); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
 
 	m := &greenlight.Movie{
-		Title:       req.Title,
-		ReleaseDate: time.Time(req.ReleaseDate),
-		Runtime:     req.Runtime,
-		Genres:      req.Genres,
+		Title:       input.Title,
+		ReleaseDate: time.Time(input.ReleaseDate),
+		Runtime:     input.Runtime,
+		Genres:      input.Genres,
 	}
 	if err := m.Valid(); err != nil {
 		s.Error(w, r, err)
@@ -88,33 +88,45 @@ func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		Title       string   `json:"title"`
-		ReleaseDate date     `json:"release_date"`
-		Runtime     int      `json:"runtime"`
+	movie, err := s.MovieService.GetMovie(id)
+	if err != nil {
+		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
+	}
+
+	// use pointers to allow partial updates
+	var input struct {
+		Title       *string  `json:"title"`
+		ReleaseDate *date    `json:"release_date"`
+		Runtime     *int     `json:"runtime"`
 		Genres      []string `json:"genres"`
 	}
-	if err := s.readRequest(w, r, &req); err != nil {
+	if err := s.readRequest(w, r, &input); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
 
-	m := &greenlight.Movie{
-		ID:          id,
-		Title:       req.Title,
-		ReleaseDate: time.Time(req.ReleaseDate),
-		Runtime:     req.Runtime,
-		Genres:      req.Genres,
+	if input.Title != nil {
+		movie.Title = *input.Title
 	}
-	if err := m.Valid(); err != nil {
+	if input.ReleaseDate != nil {
+		movie.ReleaseDate = time.Time(*input.ReleaseDate)
+	}
+	if input.Runtime != nil {
+		movie.Runtime = *input.Runtime
+	}
+	if input.Genres != nil {
+		movie.Genres = input.Genres
+	}
+
+	if err := movie.Valid(); err != nil {
 		s.Error(w, r, err)
 		return
 	}
-	if err := s.MovieService.UpdateMovie(m); err != nil {
+	if err := s.MovieService.UpdateMovie(movie); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
-	if err := s.sendResponse(w, r, http.StatusOK, m, nil); err != nil {
+	if err := s.sendResponse(w, r, http.StatusOK, movie, nil); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
