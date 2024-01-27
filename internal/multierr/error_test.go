@@ -44,7 +44,7 @@ func TestJoin(t *testing.T) {
 				errFoo,
 				errBar,
 			),
-			wantString: "foo; bar",
+			wantString: `["foo", "bar"]`,
 		},
 		{
 			giveErrors: []error{nil, nil, errFoo, nil},
@@ -62,7 +62,7 @@ func TestJoin(t *testing.T) {
 				errFoo,
 				errBar,
 			),
-			wantString: "foo; bar",
+			wantString: `["foo", "bar"]`,
 		},
 		{
 			giveErrors: []error{errFoo},
@@ -78,7 +78,7 @@ func TestJoin(t *testing.T) {
 				errFoo,
 				errBar,
 			),
-			wantString: "foo; bar",
+			wantString: `["foo", "bar"]`,
 		},
 		{
 			giveErrors: []error{
@@ -87,7 +87,7 @@ func TestJoin(t *testing.T) {
 			wantError: newJoinError(
 				errFoo, errBar, errBaz,
 			),
-			wantString: "foo; bar; baz",
+			wantString: `["foo", "bar", "baz"]`,
 		},
 		{
 			giveErrors: []error{
@@ -104,7 +104,7 @@ func TestJoin(t *testing.T) {
 				errBaz,
 				errQux,
 			),
-			wantString: "foo; bar; baz; qux",
+			wantString: `["foo", "bar", "baz", "qux"]`,
 		},
 	}
 
@@ -115,7 +115,7 @@ func TestJoin(t *testing.T) {
 				t.Errorf("want: %#v, got: %#v", tt.wantError, err)
 			}
 			if tt.wantString != "" && err.Error() != tt.wantString {
-				t.Errorf("want Error(): %s, got: %s", tt.wantError, err.Error())
+				t.Errorf("want string: %s, got: %s", tt.wantString, err.Error())
 			}
 		})
 	}

@@ -16,24 +16,34 @@ type Movie struct {
 
 // Valid returns an error if the validation fails, otherwise nil.
 func (m *Movie) Valid() error {
+	err := NewInvalidError("Movie is invalid.")
+
 	if m.ID < 0 {
-		return errors.New("incorrect ID")
+		err.AddViolation("ID", errors.New("must be greater than 0"))
 	}
 
-	t, err := time.Parse(time.DateOnly, "1800-01-01")
-	if err != nil {
-		return err
+	if m.ReleaseDate.IsZero() {
+		err.AddViolation("release_date", errors.New("must be provided"))
 	}
+	// Ignore the error since a constant string is used.
+	t, _ := time.Parse(time.DateOnly, "1800-01-01")
 	if m.ReleaseDate.After(time.Now()) || m.ReleaseDate.Before(t) {
-		return errors.New("incorrect release_date")
+		err.AddViolation("release_date", errors.New("must be greater than 1800-01-01 and not in the future"))
 	}
 
-	if m.Runtime <= 0 {
-		return errors.New("incorrect runtime")
+	if m.Runtime == 0 {
+		err.AddViolation("runtime", errors.New("must be provided"))
+	}
+	if m.Runtime < 0 {
+		err.AddViolation("runtime", errors.New("must be greater than 0"))
 	}
 
 	if len(m.Genres) == 0 {
-		return errors.New("incorrect genres")
+		err.AddViolation("genres", errors.New("must be provided"))
+	}
+
+	if len(err.violations) != 0 {
+		return err
 	}
 	return nil
 }

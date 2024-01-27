@@ -19,9 +19,9 @@ func (w *hijackResponseWriter) WriteHeader(statusCode int) {
 func (w *hijackResponseWriter) Write(data []byte) (n int, err error) {
 	switch w.status {
 	case http.StatusNotFound:
-		data, err = json.Marshal(ErrorResponse{Msg: http.StatusText(http.StatusNotFound), err: nil})
+		data, err = json.Marshal(ErrorResponse{Msg: http.StatusText(http.StatusNotFound)})
 	case http.StatusMethodNotAllowed:
-		data, err = json.Marshal(ErrorResponse{Msg: http.StatusText(http.StatusMethodNotAllowed), err: nil})
+		data, err = json.Marshal(ErrorResponse{Msg: http.StatusText(http.StatusMethodNotAllowed)})
 	}
 	if err != nil {
 		return 0, err

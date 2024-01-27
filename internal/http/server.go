@@ -74,7 +74,7 @@ func newLogger() *slog.Logger {
 	opts := slog.HandlerOptions{Level: slog.LevelDebug}
 	handler := slog.NewJSONHandler(os.Stderr, &opts)
 
-	logger := slog.New(handler).With("module", "http")
+	logger := slog.New(handler)
 
 	return logger
 }

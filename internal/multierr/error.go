@@ -33,19 +33,23 @@ func Join(errs ...error) error {
 	return joinError(mErrs)
 }
 
-// Error returns a string representation of an error. Errors are formatted as a flat structure separated by a ';' symbol.
+// Error returns a string representation of an error. Errors are formatted as a flat structure ["", ""].
 func (e joinError) Error() string {
 	if e == nil {
 		return ""
 	}
 
 	var b bytes.Buffer
+	b.WriteRune('[')
 	for i, err := range e {
 		if i != 0 {
-			b.WriteString("; ")
+			b.WriteString(", ")
 		}
+		b.WriteRune('"')
 		b.WriteString(err.Error())
+		b.WriteRune('"')
 	}
+	b.WriteRune(']')
 	return b.String()
 }
 
