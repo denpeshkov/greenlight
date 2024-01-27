@@ -1,97 +1,66 @@
 package greenlight
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
+
+	"github.com/denpeshkov/greenlight/internal/multierr"
 )
 
-const (
-	// ErrInternal indicates an internal error. Should be used for any non-application error.
-	ErrInternal string = "internal"
-	// ErrNotFound indicates that the entity was not found.
-	ErrNotFound string = "not_found"
-	// ErrInvalid indicates that the entity is invalid.
-	ErrInvalid string = "invalid"
-)
-
-// Error represents an application error.
-type Error struct {
-	// Op represents an operation that produced an error. Ops are used to construct an error trace.
-	Op string `json:"operation,omitempty"`
-	// Code represents an error code.
-	Code string `json:"code,omitempty"`
-	// Msg represents an error message.
-	Msg string `json:"message,omitempty"`
-	// Err represents a wrapped error.
-	Err error `json:"error,omitempty"`
+type InternalError struct {
+	Msg string
 }
 
-// Error implements the error interface.
-func (e *Error) Error() string {
-	var b bytes.Buffer
-
-	if e.Op != "" {
-		fmt.Fprintf(&b, "%s: ", e.Op)
+func NewInternalError(format string, args ...any) InternalError {
+	return InternalError{
+		Msg: fmt.Sprintf(format, args...),
 	}
-
-	// If wrapping an error, print its Error() message. Otherwise print the error code & message.
-	if e.Err != nil {
-		b.WriteString(e.Err.Error())
-	} else {
-		if e.Code != "" {
-			fmt.Fprintf(&b, "[%s] ", e.Code)
-		}
-		b.WriteString(e.Msg)
-	}
-	return b.String()
 }
 
-// ErrorCode returns the code of the root error, if available. Otherwise returns [ErrInternal].
-func ErrorCode(err error) string {
-	if err == nil {
-		return ""
-	}
-	if e, ok := err.(*Error); ok && e.Code != "" {
-		return e.Code
-	} else if ok && e.Err != nil {
-		return ErrorCode(e.Err)
-	}
-	return ErrInternal
+func (e InternalError) Error() string {
+	return e.Msg
 }
 
-// ErrorMessage returns the message of the root error, if available. Otherwise returns a generic error message.
-// Returned message is intended for the end-user.
-func ErrorMessage(err error) string {
-	if err == nil {
-		return ""
+type NotFoundError struct {
+	Msg string
+}
+
+func NewNotFoundError(format string, args ...any) NotFoundError {
+	return NotFoundError{
+		Msg: fmt.Sprintf(format, args...),
 	}
-	if e, ok := err.(*Error); ok && e.Msg != "" {
+}
+
+func (e NotFoundError) Error() string {
+	return e.Msg
+}
+
+type InvalidError struct {
+	Msg        string
+	violations map[string]error
+}
+
+func NewInvalidError(format string, args ...any) InvalidError {
+	return InvalidError{
+		Msg:        fmt.Sprintf(format, args...),
+		violations: make(map[string]error),
+	}
+}
+
+func (e InvalidError) Error() string {
+	if len(e.violations) == 0 {
 		return e.Msg
-	} else if ok && e.Err != nil {
-		return ErrorMessage(e.Err)
-	} else if e := errors.Unwrap(e); e != nil {
-		return ErrorMessage(e)
 	}
-	return "Internal error occurred."
+	return fmt.Sprintf("%s: %v", e.Msg, e.violations)
 }
 
-// ErrorTrace returns an error trace.
-func ErrorTrace(err error) []string {
-	var ops []string
-
-	if e, ok := err.(*Error); ok && e.Op != "" {
-		ops = append(ops, e.Op)
-		ops = append(ops, ErrorTrace(e.Err)...)
-	} else if ok && e.Err != nil {
-		ops = append(ops, ErrorTrace(e.Err)...)
-	} else if e := errors.Unwrap(err); e != nil {
-		ops = append(ops, ErrorTrace(e)...)
-	}
-	return ops
+func (e InvalidError) AddViolation(field string, err error) {
+	e.violations[field] = multierr.Join(e.violations[field], err)
 }
 
-// Unwrap returns a wrapped error.
-func (e *Error) Unwrap() error {
-	return e.Err
+func (e InvalidError) FieldViolation(field string) error {
+	return e.violations[field]
+}
+
+func (e InvalidError) Violations() map[string]error {
+	return e.violations
 }

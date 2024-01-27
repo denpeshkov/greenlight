@@ -130,7 +130,7 @@ func (c *Config) parseFlags(args []string) error {
 
 func newLogger() *slog.Logger {
 	opts := slog.HandlerOptions{Level: slog.LevelDebug}
-	logger := slog.New(slog.NewJSONHandler(os.Stderr, &opts)).With("module", "app")
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, &opts))
 
 	return logger
 }

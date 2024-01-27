@@ -1,41 +1,70 @@
 package http
 
 import (
+	"errors"
 	"net/http"
-	stdhttp "net/http"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
 )
 
 // Error responds with an error and status code from the error.
 func (s *Server) Error(w http.ResponseWriter, r *http.Request, e error) {
-	//logger := s.logger.With("method", r.Method, "path", r.URL.Path)
-	//logger.Error("Error processing request", "error", err.Error(), )
+	logger := s.logger.With("method", r.Method, "path", r.URL.Path)
 
-	// In case of an error send a 500 Internal Server Error status code with an empty body
-	if err := s.sendResponse(w, r, ErrorStatusCode(e), ErrorResponse{Err: greenlight.ErrorMessage(e)}, nil); err != nil {
-		//logger.Error("sending error response to user", "error", err)
+	code := ErrorStatusCode(e)
+	if code == http.StatusInternalServerError {
+		logger.Error("Processing request", "error", e.Error())
+	}
+
+	if err := s.sendResponse(w, r, code, ErrorBody(e), nil); err != nil {
+		logger.Error("Sending error response to the end-user", "error", err)
+		// In case of an error send a 500 Internal Server Error status code with an empty body
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
-var codes = map[string]int{
-	greenlight.ErrInternal: stdhttp.StatusInternalServerError,
-	greenlight.ErrInvalid:  stdhttp.StatusBadRequest,
-	greenlight.ErrNotFound: stdhttp.StatusNotFound,
+func ErrorStatusCode(err error) int {
+	switch {
+	case errors.As(err, &greenlight.NotFoundError{}):
+		return http.StatusNotFound
+	case errors.As(err, &greenlight.InvalidError{}):
+		return http.StatusUnprocessableEntity
+	case errors.As(err, &greenlight.InternalError{}):
+		fallthrough
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
-// ErrorStatusCode returns the associated HTTP status code for a WTF error code.
-func ErrorStatusCode(e error) int {
-	code := greenlight.ErrorCode(e)
-	if v, ok := codes[code]; ok {
-		return v
+func ErrorBody(err error) any {
+	var nfErr greenlight.NotFoundError
+	var invErr greenlight.InvalidError
+	var intErr greenlight.InternalError
+
+	switch {
+	case errors.As(err, &nfErr):
+		return ErrorResponse{Msg: nfErr.Msg}
+	case errors.As(err, &invErr):
+		vs := invErr.Violations()
+		m := make(map[string]string, len(vs))
+		for k, v := range vs {
+			m[k] = v.Error()
+		}
+		return ValidationErrorResponse{Msg: invErr.Msg, Fields: m}
+	case errors.As(err, &intErr):
+		fallthrough
+	default:
+		return ErrorResponse{Msg: "Internal server error."}
 	}
-	return http.StatusInternalServerError
 }
 
 // ErrorResponse represents an error for an end user.
 type ErrorResponse struct {
-	// Err is an error message for an end user.
-	Err string `json:"error,omitempty"`
+	// Msg is an error message for an end user.
+	Msg string `json:"message,omitempty"`
+}
+
+type ValidationErrorResponse struct {
+	Msg    string            `json:"message,omitempty"`
+	Fields map[string]string `json:"invalid_fields,omitempty"`
 }
