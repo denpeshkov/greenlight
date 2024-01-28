@@ -33,8 +33,6 @@ func (s *Server) sendResponse(w http.ResponseWriter, r *http.Request, status int
 
 // readRequest decodes a JSON request body to the dst value.
 func (s *Server) readRequest(w http.ResponseWriter, r *http.Request, dst any) error {
-	op := "http.Server.readRequest"
-
 	r.Body = http.MaxBytesReader(w, r.Body, s.opts.maxRequestBody)
 
 	dec := json.NewDecoder(r.Body)
@@ -46,7 +44,7 @@ func (s *Server) readRequest(w http.ResponseWriter, r *http.Request, dst any) er
 			fieldName := strings.TrimPrefix(err.Error(), "json: unknown field ")
 			return greenlight.NewInvalidError("JSON body contains unknown key %s", fieldName)
 		default:
-			return fmt.Errorf("%s: %w", op, err)
+			return greenlight.NewInvalidError("JSON body format is incorrect")
 		}
 	}
 	return nil

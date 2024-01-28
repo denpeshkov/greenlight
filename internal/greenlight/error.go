@@ -64,3 +64,17 @@ func (e InvalidError) FieldViolation(field string) error {
 func (e InvalidError) Violations() map[string]error {
 	return e.violations
 }
+
+type ConflictError struct {
+	Msg string
+}
+
+func NewConflictError(format string, args ...any) error {
+	return ConflictError{
+		Msg: fmt.Sprintf(format, args...),
+	}
+}
+
+func (e ConflictError) Error() string {
+	return e.Msg
+}

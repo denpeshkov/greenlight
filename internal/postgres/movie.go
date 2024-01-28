@@ -30,10 +30,10 @@ func (s *MovieService) GetMovie(id int64) (*greenlight.Movie, error) {
 
 	// FIXME get context from client
 	ctx := context.Background()
-	query := `SELECT id, title, release_date, runtime, genres FROM movies WHERE id = $1`
+	query := `SELECT id, title, release_date, runtime, genres, version FROM movies WHERE id = $1`
 	args := []any{id}
 	var m greenlight.Movie
-	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres)); err != nil {
+	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres), &m.Version); err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			return nil, greenlight.NewNotFoundError("Movie with id=%d is not found.", id)
@@ -50,10 +50,15 @@ func (s *MovieService) UpdateMovie(m *greenlight.Movie) error {
 
 	// FIXME get context from client
 	ctx := context.Background()
-	query := `UPDATE movies SET (title, release_date, runtime, genres) = ($1, $2, $3, $4) WHERE id = $5`
-	args := []any{m.Title, m.ReleaseDate, m.Runtime, pq.Array(m.Genres), m.ID}
-	if _, err := s.db.db.ExecContext(ctx, query, args...); err != nil {
-		return fmt.Errorf("%s: movie with id=%d: %w", op, m.ID, err)
+	query := `UPDATE movies SET (title, release_date, runtime, genres, version) = ($1, $2, $3, $4, version+1) WHERE id = $5 AND version = $6 RETURNING version`
+	args := []any{m.Title, m.ReleaseDate, m.Runtime, pq.Array(m.Genres), m.ID, m.Version}
+	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&m.Version); err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return greenlight.NewConflictError("Conflicting change for the movie with id=%d", m.ID)
+		default:
+			return fmt.Errorf("%s: movie with id=%d: %w", op, m.ID, err)
+		}
 	}
 	return nil
 }
@@ -86,9 +91,9 @@ func (s *MovieService) CreateMovie(m *greenlight.Movie) error {
 
 	// FIXME get context from client
 	ctx := context.Background()
-	query := `INSERT INTO movies (title, release_date, runtime, genres) VALUES ($1, $2, $3, $4) RETURNING id`
+	query := `INSERT INTO movies (title, release_date, runtime, genres) VALUES ($1, $2, $3, $4) RETURNING id, version`
 	args := []any{m.Title, m.ReleaseDate, m.Runtime, pq.Array(m.Genres)}
-	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&m.ID); err != nil {
+	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.Version); err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	return nil

@@ -12,6 +12,7 @@ type Movie struct {
 	ReleaseDate time.Time `json:"release_date,omitempty"`
 	Runtime     int       `json:"runtime,omitempty"`
 	Genres      []string  `json:"genres,omitempty"`
+	Version     int32     `json:"version"`
 }
 
 // Valid returns an error if the validation fails, otherwise nil.

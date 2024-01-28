@@ -29,6 +29,8 @@ func ErrorStatusCode(err error) int {
 		return http.StatusNotFound
 	case errors.As(err, &greenlight.InvalidError{}):
 		return http.StatusUnprocessableEntity
+	case errors.As(err, &greenlight.ConflictError{}):
+		return http.StatusConflict
 	case errors.As(err, &greenlight.InternalError{}):
 		fallthrough
 	default:
@@ -40,6 +42,7 @@ func ErrorBody(err error) any {
 	var nfErr greenlight.NotFoundError
 	var invErr greenlight.InvalidError
 	var intErr greenlight.InternalError
+	var cftErr greenlight.ConflictError
 
 	switch {
 	case errors.As(err, &nfErr):
@@ -51,6 +54,8 @@ func ErrorBody(err error) any {
 			m[k] = v.Error()
 		}
 		return ValidationErrorResponse{Msg: invErr.Msg, Fields: m}
+	case errors.As(err, &cftErr):
+		return ErrorResponse{Msg: cftErr.Msg}
 	case errors.As(err, &intErr):
 		fallthrough
 	default:

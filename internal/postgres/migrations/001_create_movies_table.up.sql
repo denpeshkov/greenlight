@@ -3,5 +3,6 @@ CREATE TABLE IF NOT EXISTS movies (
     title text NOT NULL,
     release_date date NOT NULL,
     runtime integer NOT NULL,
-    genres text[] NOT NULL
+    genres text[] NOT NULL,
+    version integer NOT NULL DEFAULT 1
 );
