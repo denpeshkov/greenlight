@@ -25,15 +25,16 @@ func NewMovieService(db *DB) *MovieService {
 	}
 }
 
-func (s *MovieService) GetMovie(id int64) (*greenlight.Movie, error) {
+func (s *MovieService) GetMovie(ctx context.Context, id int64) (*greenlight.Movie, error) {
 	op := "postgres.MovieService.GetMovie"
 
-	// FIXME get context from client
-	ctx := context.Background()
-	query := `SELECT id, title, release_date, runtime, genres, version FROM movies WHERE id = $1`
+	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
+	defer cancel()
+
+	query := `SELECT pg_sleep(10), id, title, release_date, runtime, genres, version FROM movies WHERE id = $1`
 	args := []any{id}
 	var m greenlight.Movie
-	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres), &m.Version); err != nil {
+	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&[]byte{}, &m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres), &m.Version); err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			return nil, greenlight.NewNotFoundError("Movie with id=%d is not found.", id)
@@ -45,11 +46,12 @@ func (s *MovieService) GetMovie(id int64) (*greenlight.Movie, error) {
 	return &m, nil
 }
 
-func (s *MovieService) UpdateMovie(m *greenlight.Movie) error {
+func (s *MovieService) UpdateMovie(ctx context.Context, m *greenlight.Movie) error {
 	op := "postgres.MovieService.UpdateMovie"
 
-	// FIXME get context from client
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
+	defer cancel()
+
 	query := `UPDATE movies SET (title, release_date, runtime, genres, version) = ($1, $2, $3, $4, version+1) WHERE id = $5 AND version = $6 RETURNING version`
 	args := []any{m.Title, m.ReleaseDate, m.Runtime, pq.Array(m.Genres), m.ID, m.Version}
 	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&m.Version); err != nil {
@@ -63,11 +65,12 @@ func (s *MovieService) UpdateMovie(m *greenlight.Movie) error {
 	return nil
 }
 
-func (s *MovieService) DeleteMovie(id int64) error {
+func (s *MovieService) DeleteMovie(ctx context.Context, id int64) error {
 	op := "postgres.MovieService.DeleteMovie"
 
-	// FIXME get context from client
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
+	defer cancel()
+
 	query := `DELETE FROM movies where id = $1`
 	args := []any{id}
 	rs, err := s.db.db.ExecContext(ctx, query, args...)
@@ -86,11 +89,12 @@ func (s *MovieService) DeleteMovie(id int64) error {
 	return nil
 }
 
-func (s *MovieService) CreateMovie(m *greenlight.Movie) error {
+func (s *MovieService) CreateMovie(ctx context.Context, m *greenlight.Movie) error {
 	op := "postgres.MovieService.CreateMovie"
 
-	// FIXME get context from client
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
+	defer cancel()
+
 	query := `INSERT INTO movies (title, release_date, runtime, genres) VALUES ($1, $2, $3, $4) RETURNING id, version`
 	args := []any{m.Title, m.ReleaseDate, m.Runtime, pq.Array(m.Genres)}
 	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.Version); err != nil {

@@ -15,9 +15,10 @@ func (s *Server) Error(w http.ResponseWriter, r *http.Request, e error) {
 	if code == http.StatusInternalServerError {
 		logger.Error("Error processing request", "error", e.Error())
 	}
+	errResp := ErrorBody(e)
 
-	if err := s.sendResponse(w, r, code, ErrorBody(e), nil); err != nil {
-		logger.Error("Sending error response to the end-user", "error", err)
+	if err := s.sendResponse(w, r, code, errResp, nil); err != nil {
+		logger.Error("Sending error response", "error", err, "error_resp", errResp)
 		// In case of an error send a 500 Internal Server Error status code with an empty body
 		w.WriteHeader(http.StatusInternalServerError)
 	}

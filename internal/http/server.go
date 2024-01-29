@@ -3,9 +3,11 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
 )
@@ -43,6 +45,8 @@ func NewServer(addr string, opts ...Option) *Server {
 
 // Start starts an HTTP server.
 func (s *Server) Start() error {
+	op := "http.Server.Start"
+
 	s.server.Handler = s
 	s.server.ErrorLog = slog.NewLogLogger(s.logger.Handler(), slog.LevelError)
 
@@ -52,21 +56,29 @@ func (s *Server) Start() error {
 
 	err := s.server.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
-		return err
+		return fmt.Errorf("%s: %w", op, err)
 	}
 	return nil
 }
 
 // Close gracefully shuts down the server.
 func (s *Server) Close() error {
+	op := "http.Server.Close"
+
 	ctx, cancel := context.WithTimeout(context.Background(), s.opts.shutdownTimeout)
 	defer cancel()
-	return s.server.Shutdown(ctx)
+
+	err := s.server.Shutdown(ctx)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
 }
 
 // ServerHTTP handles an HTTP request.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h := s.notFound(s.router)
+	h := http.TimeoutHandler(s.router, 2*time.Second, "TIMEOUT!!!")
+	h = s.notFound(s.methodNotAllowed(h))
 	h.ServeHTTP(w, r)
 }
 

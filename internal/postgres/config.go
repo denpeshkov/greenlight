@@ -6,7 +6,8 @@ type options struct {
 	maxOpenConns    int
 	maxIdleConns    int
 	connMaxIdleTime time.Duration
-	ctxTimeout      time.Duration
+	connTimeout     time.Duration
+	queryTimeout    time.Duration
 }
 
 // Option represents a configuration option for PostgreSQL*options.
@@ -33,9 +34,16 @@ func WithMaxIdleTime(maxIdleTime time.Duration) Option {
 	}
 }
 
-// WithContextTimeout sets the context timeout.
-func WithContextTimeout(ctxTimeout time.Duration) Option {
+// WithConnectionTimeout sets the timeout for establishing the connection.
+func WithConnectionTimeout(connTimeout time.Duration) Option {
 	return func(opts *options) {
-		opts.ctxTimeout = ctxTimeout
+		opts.connTimeout = connTimeout
+	}
+}
+
+// WithQueryTimeout sets the query execution timeout.
+func WithQueryTimeout(queryTimeout time.Duration) Option {
+	return func(opts *options) {
+		opts.queryTimeout = queryTimeout
 	}
 }

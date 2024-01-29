@@ -16,23 +16,48 @@ func (w *hijackResponseWriter) WriteHeader(statusCode int) {
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
-func (w *hijackResponseWriter) Write(data []byte) (n int, err error) {
-	switch w.status {
-	case http.StatusNotFound:
+type notFoundResponseWriter struct {
+	hijackResponseWriter
+}
+
+func (w *notFoundResponseWriter) Write(data []byte) (n int, err error) {
+	if w.hijackResponseWriter.status == http.StatusNotFound {
 		data, err = json.Marshal(ErrorResponse{Msg: http.StatusText(http.StatusNotFound)})
-	case http.StatusMethodNotAllowed:
+	}
+	if err != nil {
+		return 0, err
+	}
+	return w.hijackResponseWriter.Write(data)
+}
+
+// notFound returns a request handler that handles [http.StatusNotFound] status code.
+func (s *Server) notFound(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hw := hijackResponseWriter{ResponseWriter: w, status: http.StatusOK}
+		nfw := &notFoundResponseWriter{hijackResponseWriter: hw}
+		h.ServeHTTP(nfw, r)
+	})
+}
+
+type methodNotAllowedResponseWriter struct {
+	hijackResponseWriter
+}
+
+func (w *methodNotAllowedResponseWriter) Write(data []byte) (n int, err error) {
+	if w.hijackResponseWriter.status == http.StatusMethodNotAllowed {
 		data, err = json.Marshal(ErrorResponse{Msg: http.StatusText(http.StatusMethodNotAllowed)})
 	}
 	if err != nil {
 		return 0, err
 	}
-	return w.ResponseWriter.Write(data)
+	return w.hijackResponseWriter.Write(data)
 }
 
-// notFound returns a request handler that handles [http.StatusNotFound] and [http.StatusMethodNotAllowed] status codes.
-func (s *Server) notFound(h http.Handler) http.Handler {
+// methodNotAllowed returns a request handler that handles [http.StatusMethodNotAllowed] status code.
+func (s *Server) methodNotAllowed(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hW := &hijackResponseWriter{ResponseWriter: w, status: http.StatusOK}
-		h.ServeHTTP(hW, r)
+		hw := hijackResponseWriter{ResponseWriter: w, status: http.StatusOK}
+		mrw := &methodNotAllowedResponseWriter{hijackResponseWriter: hw}
+		h.ServeHTTP(mrw, r)
 	})
 }

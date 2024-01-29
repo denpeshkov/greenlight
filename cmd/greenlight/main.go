@@ -34,7 +34,8 @@ type Config struct {
 		maxOpenConns int
 		maxIdleConns int
 		maxIdleTime  time.Duration
-		ctxTimeout   time.Duration
+		connTimeout  time.Duration
+		queryTimeout time.Duration
 	}
 }
 
@@ -60,7 +61,8 @@ func run(cfg *Config, logger *slog.Logger) error {
 		postgres.WithMaxOpenConns(cfg.pgDB.maxOpenConns),
 		postgres.WithMaxIdleConns(cfg.pgDB.maxIdleConns),
 		postgres.WithMaxIdleTime(cfg.pgDB.maxIdleTime),
-		postgres.WithContextTimeout(cfg.pgDB.ctxTimeout),
+		postgres.WithConnectionTimeout(cfg.pgDB.connTimeout),
+		postgres.WithQueryTimeout(cfg.pgDB.queryTimeout),
 	)
 	srv := http.NewServer(
 		cfg.http.addr,
@@ -123,7 +125,8 @@ func (c *Config) parseFlags(args []string) error {
 	fs.IntVar(&c.pgDB.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	fs.IntVar(&c.pgDB.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	fs.DurationVar(&c.pgDB.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
-	fs.DurationVar(&c.pgDB.ctxTimeout, "db-ctx-timeout", 10*time.Second, "PostgreSQL context timeout")
+	fs.DurationVar(&c.pgDB.connTimeout, "db-conn-timeout", 5*time.Second, "PostgreSQL connection timeout")
+	fs.DurationVar(&c.pgDB.queryTimeout, "db-query-timeout", 3*time.Second, "PostgreSQL query timeout")
 
 	return fs.Parse(args)
 }

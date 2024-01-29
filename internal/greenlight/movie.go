@@ -1,6 +1,7 @@
 package greenlight
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -51,8 +52,8 @@ func (m *Movie) Valid() error {
 
 // MovieService is a service for managing movies.
 type MovieService interface {
-	GetMovie(id int64) (*Movie, error)
-	CreateMovie(m *Movie) error
-	UpdateMovie(m *Movie) error
-	DeleteMovie(id int64) error
+	GetMovie(ctx context.Context, id int64) (*Movie, error)
+	CreateMovie(ctx context.Context, m *Movie) error
+	UpdateMovie(ctx context.Context, m *Movie) error
+	DeleteMovie(ctx context.Context, id int64) error
 }

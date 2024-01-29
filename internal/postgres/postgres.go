@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -18,8 +19,6 @@ type DB struct {
 	opts options
 
 	db     *sql.DB
-	ctx    context.Context // context
-	cancel func()          // context cancel func
 	logger *slog.Logger
 }
 
@@ -39,27 +38,42 @@ func NewDB(dsn string, opts ...Option) *DB {
 
 // Open returns a new instance of an established database connection.
 func (db *DB) Open() (err error) {
+	op := "postgres.DB.Open"
+
 	if db.DSN == "" {
 		return errors.New("data source name (DSN) required")
 	}
 
 	if db.db, err = sql.Open("postgres", db.DSN); err != nil {
-		return err
+		return fmt.Errorf("%s: %w", op, err)
 	}
-	db.ctx, db.cancel = context.WithTimeout(context.Background(), db.opts.ctxTimeout)
 
-	if err = db.db.PingContext(db.ctx); err != nil {
-		return err
+	db.db.SetMaxOpenConns(db.opts.maxOpenConns)
+	db.db.SetMaxIdleConns(db.opts.maxIdleConns)
+	db.db.SetConnMaxIdleTime(db.opts.connMaxIdleTime)
+
+	ctx, cancel := context.WithTimeout(context.Background(), db.opts.connTimeout)
+	defer cancel()
+
+	if err = db.db.PingContext(ctx); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
 	}
-	return db.Migrate(UP)
+	if err = db.Migrate(UP); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
 }
 
 // Close gracefully shuts down the database.
 func (db *DB) Close() error {
-	db.cancel()
-	err := db.Migrate(DOWN)
+	op := "postgres.DB.Close"
+
+	err1 := db.Migrate(DOWN)
 	err2 := db.db.Close()
-	return multierr.Join(err2, err)
+	if err := multierr.Join(err2, err1); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
 }
 
 // newLogger returns a database logger.

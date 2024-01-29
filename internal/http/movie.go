@@ -28,7 +28,7 @@ func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m, err := s.MovieService.GetMovie(id)
+	m, err := s.MovieService.GetMovie(r.Context(), id)
 	if err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
@@ -64,7 +64,7 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 		s.Error(w, r, err)
 		return
 	}
-	if err := s.MovieService.CreateMovie(m); err != nil {
+	if err := s.MovieService.CreateMovie(r.Context(), m); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
@@ -88,7 +88,7 @@ func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	movie, err := s.MovieService.GetMovie(id)
+	movie, err := s.MovieService.GetMovie(r.Context(), id)
 	if err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 	}
@@ -122,7 +122,7 @@ func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) {
 		s.Error(w, r, err)
 		return
 	}
-	if err := s.MovieService.UpdateMovie(movie); err != nil {
+	if err := s.MovieService.UpdateMovie(r.Context(), movie); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
@@ -143,7 +143,7 @@ func (s *Server) handleMovieDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.MovieService.DeleteMovie(id); err != nil {
+	if err := s.MovieService.DeleteMovie(r.Context(), id); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
