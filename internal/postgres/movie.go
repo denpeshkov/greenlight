@@ -63,8 +63,9 @@ func (s *MovieService) GetMovies(ctx context.Context, filter greenlight.MovieFil
 		SELECT id, title, release_date, runtime, genres, version 
 		FROM movies
 		WHERE (LOWER(title) = LOWER($1) OR $1 = '') AND (genres @> $2 OR $2 = '{}')
-		ORDER BY %s %s, id ASC`, sortCol, sortDir)
-	rs, err := s.db.db.QueryContext(ctx, query, filter.Title, pq.Array(filter.Genres))
+		ORDER BY %s %s, id ASC
+		LIMIT $3 OFFSET $4`, sortCol, sortDir)
+	rs, err := s.db.db.QueryContext(ctx, query, filter.Title, pq.Array(filter.Genres), filter.PageSize, (filter.Page-1)*filter.PageSize)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
