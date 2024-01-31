@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -59,5 +60,18 @@ func (s *Server) methodNotAllowed(h http.Handler) http.Handler {
 		hw := hijackResponseWriter{ResponseWriter: w, status: http.StatusOK}
 		mrw := &methodNotAllowedResponseWriter{hijackResponseWriter: hw}
 		h.ServeHTTP(mrw, r)
+	})
+}
+
+func (s *Server) recoverPanic(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				// Acts as a trigger to make HTTP server automatically close the current connection after a response has been sent.
+				w.Header().Set("Connection", "close")
+				s.Error(w, r, fmt.Errorf("%v", err))
+			}
+		}()
+		h.ServeHTTP(w, r)
 	})
 }

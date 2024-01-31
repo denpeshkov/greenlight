@@ -78,7 +78,7 @@ func (s *Server) Close() error {
 // ServerHTTP handles an HTTP request.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h := http.TimeoutHandler(s.router, 2*time.Second, "TIMEOUT!!!")
-	h = s.notFound(s.methodNotAllowed(h))
+	h = s.recoverPanic(s.notFound(s.methodNotAllowed(h)))
 	h.ServeHTTP(w, r)
 }
 
