@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
 	"github.com/lib/pq"
@@ -52,11 +53,17 @@ func (s *MovieService) GetMovies(ctx context.Context, filter greenlight.MovieFil
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
 
-	query := `
+	sortCol, sortDir := filter.Sort, "ASC"
+	if v, ok := strings.CutPrefix(sortCol, "-"); ok {
+		sortCol = v
+		sortDir = "DESC"
+	}
+
+	query := fmt.Sprintf(`
 		SELECT id, title, release_date, runtime, genres, version 
 		FROM movies
 		WHERE (LOWER(title) = LOWER($1) OR $1 = '') AND (genres @> $2 OR $2 = '{}')
-		ORDER BY id ASC`
+		ORDER BY %s %s, id ASC`, sortCol, sortDir)
 	rs, err := s.db.db.QueryContext(ctx, query, filter.Title, pq.Array(filter.Genres))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
