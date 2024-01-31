@@ -31,10 +31,10 @@ func (s *MovieService) GetMovie(ctx context.Context, id int64) (*greenlight.Movi
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
 
-	query := `SELECT pg_sleep(10), id, title, release_date, runtime, genres, version FROM movies WHERE id = $1`
+	query := `SELECT id, title, release_date, runtime, genres, version FROM movies WHERE id = $1`
 	args := []any{id}
 	var m greenlight.Movie
-	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&[]byte{}, &m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres), &m.Version); err != nil {
+	if err := s.db.db.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres), &m.Version); err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			return nil, greenlight.NewNotFoundError("Movie with id=%d is not found.", id)
@@ -44,6 +44,38 @@ func (s *MovieService) GetMovie(ctx context.Context, id int64) (*greenlight.Movi
 	}
 
 	return &m, nil
+}
+
+func (s *MovieService) GetMovies(ctx context.Context, filter greenlight.MovieFilter) ([]*greenlight.Movie, error) {
+	op := "postgres.MovieService.GetMovies"
+
+	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
+	defer cancel()
+
+	query := `
+		SELECT id, title, release_date, runtime, genres, version 
+		FROM movies
+		WHERE (LOWER(title) = LOWER($1) OR $1 = '') AND (genres @> $2 OR $2 = '{}')
+		ORDER BY id ASC`
+	rs, err := s.db.db.QueryContext(ctx, query, filter.Title, pq.Array(filter.Genres))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	defer rs.Close()
+
+	var movies []*greenlight.Movie
+	for rs.Next() {
+		var m greenlight.Movie
+		if err := rs.Scan(&m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres), &m.Version); err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+		movies = append(movies, &m)
+	}
+	if err := rs.Err(); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return movies, nil
 }
 
 func (s *MovieService) UpdateMovie(ctx context.Context, m *greenlight.Movie) error {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
@@ -12,6 +13,7 @@ import (
 
 func (s *Server) registerMovieHandlers() {
 	s.router.HandleFunc("GET /v1/movies/{id}", s.handleMovieGet)
+	s.router.HandleFunc("GET /v1/movies", s.handleMoviesGet)
 	s.router.HandleFunc("POST /v1/movies", s.handleMovieCreate)
 	s.router.HandleFunc("PATCH /v1/movies/{id}", s.handleMovieUpdate)
 	s.router.HandleFunc("DELETE /v1/movies/{id}", s.handleMovieDelete)
@@ -24,7 +26,7 @@ func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 	idRaw := r.PathValue("id")
 	id, err := strconv.ParseInt(idRaw, 10, 64)
 	if err != nil || id < 0 {
-		s.Error(w, r, greenlight.NewInvalidError("Invalid ID format: %s", idRaw))
+		s.Error(w, r, greenlight.NewInvalidError(`Invalid "ID" parameter format: %s`, idRaw))
 		return
 	}
 
@@ -33,7 +35,97 @@ func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
-	if err := s.sendResponse(w, r, http.StatusOK, m, nil); err != nil {
+
+	resp := struct {
+		ID          int64     `json:"id"`
+		Title       string    `json:"title"`
+		ReleaseDate time.Time `json:"release_date,omitempty"`
+		Runtime     int       `json:"runtime,omitempty"`
+		Genres      []string  `json:"genres,omitempty"`
+	}{
+		ID:          m.ID,
+		Title:       m.Title,
+		ReleaseDate: m.ReleaseDate,
+		Runtime:     m.Runtime,
+		Genres:      m.Genres,
+	}
+
+	if err := s.sendResponse(w, r, http.StatusOK, resp, nil); err != nil {
+		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
+		return
+	}
+}
+
+// handleMoviesGet handles requests to get movies based on provided filter parameters.
+func (s *Server) handleMoviesGet(w http.ResponseWriter, r *http.Request) {
+	op := "http.Server.handleMoviesGet"
+
+	filter := greenlight.MovieFilter{
+		Title:    "",
+		Genres:   []string{},
+		Page:     1,
+		PageSize: 20,
+		Sort:     "id",
+	}
+
+	vs := r.URL.Query()
+
+	filter.Title = vs.Get("title")
+	if vs.Has("genres") {
+		filter.Genres = strings.Split(vs.Get("genres"), ",")
+	}
+	if vs.Has("page") {
+		pageRaw := vs.Get("page")
+		page, err := strconv.Atoi(pageRaw)
+		if err != nil {
+			s.Error(w, r, greenlight.NewInvalidError(`Invalid "page" parameter format: %s`, pageRaw))
+			return
+		}
+		filter.Page = page
+	}
+	if vs.Has("page_size") {
+		pageSzRaw := vs.Get("page_size")
+		pageSz, err := strconv.Atoi(pageSzRaw)
+		if err != nil {
+			s.Error(w, r, greenlight.NewInvalidError(`Invalid "page_size" parameter format: %s`, pageSzRaw))
+			return
+		}
+		filter.PageSize = pageSz
+	}
+	if vs.Has("sort") {
+		filter.Sort = vs.Get("sort")
+	}
+
+	if err := filter.Valid(); err != nil {
+		s.Error(w, r, err)
+		return
+	}
+
+	movies, err := s.MovieService.GetMovies(r.Context(), filter)
+	if err != nil {
+		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
+		return
+	}
+
+	type respEl struct {
+		ID          int64     `json:"id"`
+		Title       string    `json:"title"`
+		ReleaseDate time.Time `json:"release_date,omitempty"`
+		Runtime     int       `json:"runtime,omitempty"`
+		Genres      []string  `json:"genres,omitempty"`
+	}
+	resp := make([]*respEl, len(movies))
+	for i, m := range movies {
+		resp[i] = &respEl{
+			ID:          m.ID,
+			Title:       m.Title,
+			ReleaseDate: m.ReleaseDate,
+			Runtime:     m.Runtime,
+			Genres:      m.Genres,
+		}
+	}
+
+	if err := s.sendResponse(w, r, http.StatusOK, resp, nil); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
@@ -43,22 +135,22 @@ func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 	op := "http.Server.handleMovieCreate"
 
-	var input struct {
+	var req struct {
 		Title       string   `json:"title"`
 		ReleaseDate date     `json:"release_date"`
 		Runtime     int      `json:"runtime"`
 		Genres      []string `json:"genres"`
 	}
-	if err := s.readRequest(w, r, &input); err != nil {
+	if err := s.readRequest(w, r, &req); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
 
 	m := &greenlight.Movie{
-		Title:       input.Title,
-		ReleaseDate: time.Time(input.ReleaseDate),
-		Runtime:     input.Runtime,
-		Genres:      input.Genres,
+		Title:       req.Title,
+		ReleaseDate: time.Time(req.ReleaseDate),
+		Runtime:     req.Runtime,
+		Genres:      req.Genres,
 	}
 	if err := m.Valid(); err != nil {
 		s.Error(w, r, err)
@@ -69,9 +161,23 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	resp := struct {
+		ID          int64     `json:"id"`
+		Title       string    `json:"title"`
+		ReleaseDate time.Time `json:"release_date,omitempty"`
+		Runtime     int       `json:"runtime,omitempty"`
+		Genres      []string  `json:"genres,omitempty"`
+	}{
+		ID:          m.ID,
+		Title:       m.Title,
+		ReleaseDate: m.ReleaseDate,
+		Runtime:     m.Runtime,
+		Genres:      m.Genres,
+	}
+
 	headers := make(http.Header)
-	headers.Set("Location", fmt.Sprintf("/v1/movies/%d", m.ID))
-	if err := s.sendResponse(w, r, http.StatusCreated, m, headers); err != nil {
+	headers.Set("Location", fmt.Sprintf("/v1/movies/%d", resp.ID))
+	if err := s.sendResponse(w, r, http.StatusCreated, resp, headers); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
@@ -88,45 +194,60 @@ func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	movie, err := s.MovieService.GetMovie(r.Context(), id)
+	m, err := s.MovieService.GetMovie(r.Context(), id)
 	if err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 	}
 
 	// use pointers to allow partial updates
-	var input struct {
+	var req struct {
 		Title       *string  `json:"title"`
 		ReleaseDate *date    `json:"release_date"`
 		Runtime     *int     `json:"runtime"`
 		Genres      []string `json:"genres"`
 	}
-	if err := s.readRequest(w, r, &input); err != nil {
+	if err := s.readRequest(w, r, &req); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
 
-	if input.Title != nil {
-		movie.Title = *input.Title
+	if req.Title != nil {
+		m.Title = *req.Title
 	}
-	if input.ReleaseDate != nil {
-		movie.ReleaseDate = time.Time(*input.ReleaseDate)
+	if req.ReleaseDate != nil {
+		m.ReleaseDate = time.Time(*req.ReleaseDate)
 	}
-	if input.Runtime != nil {
-		movie.Runtime = *input.Runtime
+	if req.Runtime != nil {
+		m.Runtime = *req.Runtime
 	}
-	if input.Genres != nil {
-		movie.Genres = input.Genres
+	if req.Genres != nil {
+		m.Genres = req.Genres
 	}
 
-	if err := movie.Valid(); err != nil {
+	if err := m.Valid(); err != nil {
 		s.Error(w, r, err)
 		return
 	}
-	if err := s.MovieService.UpdateMovie(r.Context(), movie); err != nil {
+	if err := s.MovieService.UpdateMovie(r.Context(), m); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}
-	if err := s.sendResponse(w, r, http.StatusOK, movie, nil); err != nil {
+
+	resp := struct {
+		ID          int64     `json:"id"`
+		Title       string    `json:"title"`
+		ReleaseDate time.Time `json:"release_date,omitempty"`
+		Runtime     int       `json:"runtime,omitempty"`
+		Genres      []string  `json:"genres,omitempty"`
+	}{
+		ID:          m.ID,
+		Title:       m.Title,
+		ReleaseDate: m.ReleaseDate,
+		Runtime:     m.Runtime,
+		Genres:      m.Genres,
+	}
+
+	if err := s.sendResponse(w, r, http.StatusOK, resp, nil); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}

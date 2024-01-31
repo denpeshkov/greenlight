@@ -57,6 +57,10 @@ func (e InvalidError) AddViolation(field string, err error) {
 	e.violations[field] = multierr.Join(e.violations[field], err)
 }
 
+func (e InvalidError) AddViolationMsg(field string, msg string) {
+	e.violations[field] = multierr.Join(e.violations[field], fmt.Errorf(msg))
+}
+
 func (e InvalidError) FieldViolation(field string) error {
 	return e.violations[field]
 }
