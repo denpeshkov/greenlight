@@ -28,6 +28,13 @@ type Config struct {
 		shutdownTimeout time.Duration
 		maxRequestBody  int64
 	}
+
+	// HTTP request limiter
+	limiter struct {
+		rps   float64
+		burst int
+	}
+
 	// PostgreSQL database
 	pgDB struct {
 		dsn          string
@@ -71,6 +78,8 @@ func run(cfg *Config, logger *slog.Logger) error {
 		http.WithWriteTimeout(cfg.http.writeTimeout),
 		http.WithShutdownTimeout(cfg.http.shutdownTimeout),
 		http.WithMaxRequestBody(cfg.http.maxRequestBody),
+		http.WithLimiterRps(cfg.limiter.rps),
+		http.WithLimiterBurst(cfg.limiter.burst),
 	)
 
 	// Application graceful shutdown
@@ -119,6 +128,10 @@ func (c *Config) parseFlags(args []string) error {
 	fs.DurationVar(&c.http.writeTimeout, "http-write-timeout", 30*time.Second, "HTTP server write timeout")
 	fs.DurationVar(&c.http.shutdownTimeout, "http-shutdown-timeout", 20*time.Second, "HTTP server shutdown timeout")
 	fs.Int64Var(&c.http.maxRequestBody, "http-max-request-body", 1_048_576, "Maximum HTTP request body size in bytes")
+
+	// HTTP limiter
+	fs.Float64Var(&c.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
+	fs.IntVar(&c.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 
 	//PostgreSQL
 	fs.StringVar(&c.pgDB.dsn, "dsn", os.Getenv("POSTGRES_DSN"), "PostgreSQL DSN")

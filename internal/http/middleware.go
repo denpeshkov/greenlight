@@ -3,7 +3,13 @@ package http
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"sync"
+	"time"
+
+	"github.com/denpeshkov/greenlight/internal/greenlight"
+	"golang.org/x/time/rate"
 )
 
 // hijackResponseWriter records status of the HTTP response.
@@ -72,6 +78,50 @@ func (s *Server) recoverPanic(h http.Handler) http.Handler {
 				s.Error(w, r, fmt.Errorf("%v", err))
 			}
 		}()
+		h.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) rateLimit(h http.Handler) http.Handler {
+	op := "http.Server.rateLimit"
+
+	type clientLim struct {
+		lim      *rate.Limiter
+		lastSeen time.Time
+	}
+
+	lims := sync.Map{}
+
+	// cleanup unused limiters
+	go func() {
+		for {
+			time.Sleep(time.Minute)
+
+			lims.Range(func(ip, v any) bool {
+				clim := v.(*clientLim)
+				if time.Since(clim.lastSeen) > 3*time.Minute {
+					lims.Delete(ip)
+				}
+				return true
+			})
+		}
+	}()
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			s.Error(w, r, fmt.Errorf("%s: %w", op, err))
+		}
+
+		v, _ := lims.LoadOrStore(ip, clientLim{lim: rate.NewLimiter(rate.Limit(s.opts.limiterRps), s.opts.limiterBurst)})
+		clim := v.(clientLim)
+
+		clim.lastSeen = time.Now()
+		if !clim.lim.Allow() {
+			s.Error(w, r, greenlight.NewRateLimitError("Rate limit exceeded."))
+			return
+		}
+
 		h.ServeHTTP(w, r)
 	})
 }

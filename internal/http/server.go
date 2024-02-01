@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
 )
@@ -47,7 +46,9 @@ func NewServer(addr string, opts ...Option) *Server {
 func (s *Server) Start() error {
 	op := "http.Server.Start"
 
-	s.server.Handler = s
+	handler := s.recoverPanic(s.rateLimit(s.notFound(s.methodNotAllowed(s.router))))
+
+	s.server.Handler = handler
 	s.server.ErrorLog = slog.NewLogLogger(s.logger.Handler(), slog.LevelError)
 
 	s.server.IdleTimeout = s.opts.idleTimeout
@@ -73,13 +74,6 @@ func (s *Server) Close() error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	return nil
-}
-
-// ServerHTTP handles an HTTP request.
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h := http.TimeoutHandler(s.router, 2*time.Second, "TIMEOUT!!!")
-	h = s.recoverPanic(s.notFound(s.methodNotAllowed(h)))
-	h.ServeHTTP(w, r)
 }
 
 func newLogger() *slog.Logger {

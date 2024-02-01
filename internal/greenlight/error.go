@@ -82,3 +82,17 @@ func NewConflictError(format string, args ...any) error {
 func (e ConflictError) Error() string {
 	return e.Msg
 }
+
+type RateLimitError struct {
+	Msg string
+}
+
+func NewRateLimitError(format string, args ...any) error {
+	return RateLimitError{
+		Msg: fmt.Sprintf(format, args...),
+	}
+}
+
+func (e RateLimitError) Error() string {
+	return e.Msg
+}

@@ -32,6 +32,8 @@ func ErrorStatusCode(err error) int {
 		return http.StatusUnprocessableEntity
 	case errors.As(err, &greenlight.ConflictError{}):
 		return http.StatusConflict
+	case errors.As(err, &greenlight.RateLimitError{}):
+		return http.StatusTooManyRequests
 	case errors.As(err, &greenlight.InternalError{}):
 		fallthrough
 	default:
@@ -44,6 +46,7 @@ func ErrorBody(err error) any {
 	var invErr greenlight.InvalidError
 	var intErr greenlight.InternalError
 	var cftErr greenlight.ConflictError
+	var rateErr greenlight.RateLimitError
 
 	switch {
 	case errors.As(err, &nfErr):
@@ -57,6 +60,8 @@ func ErrorBody(err error) any {
 		return ValidationErrorResponse{Msg: invErr.Msg, Fields: m}
 	case errors.As(err, &cftErr):
 		return ErrorResponse{Msg: cftErr.Msg}
+	case errors.As(err, &rateErr):
+		return ErrorResponse{Msg: rateErr.Msg}
 	case errors.As(err, &intErr):
 		fallthrough
 	default:
