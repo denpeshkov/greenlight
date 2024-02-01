@@ -107,7 +107,7 @@ func run(cfg *Config, logger *slog.Logger) error {
 	srv.MovieService = postgres.NewMovieService(db)
 
 	// Setting up HTTP server
-	err = srv.Start()
+	err = srv.Open()
 	if err != nil {
 		return fmt.Errorf("HTTP server serve: %w", err)
 	}

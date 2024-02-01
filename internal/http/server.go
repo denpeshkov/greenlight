@@ -42,8 +42,8 @@ func NewServer(addr string, opts ...Option) *Server {
 	return s
 }
 
-// Start starts an HTTP server.
-func (s *Server) Start() error {
+// Open starts an HTTP server.
+func (s *Server) Open() error {
 	op := "http.Server.Start"
 
 	handler := s.recoverPanic(s.rateLimit(s.notFound(s.methodNotAllowed(s.router))))
