@@ -12,7 +12,7 @@ type Movie struct {
 	ReleaseDate time.Time `json:"release_date,omitempty"`
 	Runtime     int       `json:"runtime,omitempty"`
 	Genres      []string  `json:"genres,omitempty"`
-	Version     int32     `json:"version"`
+	Version     int32     `json:"-"`
 }
 
 // Valid returns an error if the validation fails, otherwise nil.
@@ -89,9 +89,9 @@ func (f *MovieFilter) Valid() error {
 
 // MovieService is a service for managing movies.
 type MovieService interface {
-	GetMovie(ctx context.Context, id int64) (*Movie, error)
-	GetMovies(cts context.Context, filter MovieFilter) ([]*Movie, error)
-	CreateMovie(ctx context.Context, m *Movie) error
-	UpdateMovie(ctx context.Context, m *Movie) error
-	DeleteMovie(ctx context.Context, id int64) error
+	Get(ctx context.Context, id int64) (*Movie, error)
+	GetAll(cts context.Context, filter MovieFilter) ([]*Movie, error)
+	Create(ctx context.Context, m *Movie) error
+	Update(ctx context.Context, m *Movie) error
+	Delete(ctx context.Context, id int64) error
 }

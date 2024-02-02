@@ -105,6 +105,7 @@ func run(cfg *Config, logger *slog.Logger) error {
 
 	// Setting up services
 	srv.MovieService = postgres.NewMovieService(db)
+	srv.UserService = postgres.NewUserService(db)
 
 	// Setting up HTTP server
 	err = srv.Open()

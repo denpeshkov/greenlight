@@ -98,7 +98,7 @@ func (s *Server) rateLimit(h http.Handler) http.Handler {
 			time.Sleep(time.Minute)
 
 			lims.Range(func(ip, v any) bool {
-				clim := v.(*clientLim)
+				clim := v.(clientLim)
 				if time.Since(clim.lastSeen) > 3*time.Minute {
 					lims.Delete(ip)
 				}

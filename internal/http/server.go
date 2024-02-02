@@ -14,6 +14,7 @@ import (
 // Server represents an HTTP server.
 type Server struct {
 	MovieService greenlight.MovieService
+	UserService  greenlight.UserService
 
 	opts options
 
@@ -38,6 +39,7 @@ func NewServer(addr string, opts ...Option) *Server {
 
 	s.registerHealthCheckHandlers()
 	s.registerMovieHandlers()
+	s.registerUserHandlers()
 
 	return s
 }

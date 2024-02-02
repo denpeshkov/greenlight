@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
@@ -14,20 +13,20 @@ import (
 
 // MovieService represents a service for managing movies backed by PostgreSQL.
 type MovieService struct {
-	db     *DB
-	logger *slog.Logger
+	db *DB
 }
+
+var _ greenlight.MovieService = (*MovieService)(nil)
 
 // NewMovieService returns a new instance of [MovieService].
 func NewMovieService(db *DB) *MovieService {
 	return &MovieService{
-		db:     db,
-		logger: newLogger(),
+		db: db,
 	}
 }
 
-func (s *MovieService) GetMovie(ctx context.Context, id int64) (*greenlight.Movie, error) {
-	op := "postgres.MovieService.GetMovie"
+func (s *MovieService) Get(ctx context.Context, id int64) (*greenlight.Movie, error) {
+	op := "postgres.MovieService.Get"
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
@@ -44,7 +43,7 @@ func (s *MovieService) GetMovie(ctx context.Context, id int64) (*greenlight.Movi
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres), &m.Version); err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, greenlight.NewNotFoundError("Movie with id=%d is not found.", id)
+			return nil, greenlight.NewNotFoundError("Movie not found.")
 		default:
 			return nil, fmt.Errorf("%s: movie with id=%d: %w", op, id, err)
 		}
@@ -56,8 +55,8 @@ func (s *MovieService) GetMovie(ctx context.Context, id int64) (*greenlight.Movi
 	return &m, nil
 }
 
-func (s *MovieService) GetMovies(ctx context.Context, filter greenlight.MovieFilter) ([]*greenlight.Movie, error) {
-	op := "postgres.MovieService.GetMovies"
+func (s *MovieService) GetAll(ctx context.Context, filter greenlight.MovieFilter) ([]*greenlight.Movie, error) {
+	op := "postgres.MovieService.GetAll"
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
@@ -104,8 +103,8 @@ func (s *MovieService) GetMovies(ctx context.Context, filter greenlight.MovieFil
 	return movies, nil
 }
 
-func (s *MovieService) UpdateMovie(ctx context.Context, m *greenlight.Movie) error {
-	op := "postgres.MovieService.UpdateMovie"
+func (s *MovieService) Update(ctx context.Context, m *greenlight.Movie) error {
+	op := "postgres.MovieService.Update"
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
@@ -133,8 +132,8 @@ func (s *MovieService) UpdateMovie(ctx context.Context, m *greenlight.Movie) err
 	return nil
 }
 
-func (s *MovieService) DeleteMovie(ctx context.Context, id int64) error {
-	op := "postgres.MovieService.DeleteMovie"
+func (s *MovieService) Delete(ctx context.Context, id int64) error {
+	op := "postgres.MovieService.Delete"
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
@@ -166,8 +165,8 @@ func (s *MovieService) DeleteMovie(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (s *MovieService) CreateMovie(ctx context.Context, m *greenlight.Movie) error {
-	op := "postgres.MovieService.CreateMovie"
+func (s *MovieService) Create(ctx context.Context, m *greenlight.Movie) error {
+	op := "postgres.MovieService.Create"
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
