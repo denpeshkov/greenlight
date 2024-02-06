@@ -35,10 +35,10 @@ func (s *UserService) Get(ctx context.Context, email string) (*greenlight.User, 
 	}
 	defer tx.Rollback()
 
-	query := `SELECT id, name, email, password_hash, activated, version FROM users WHERE email = $1`
+	query := `SELECT id, name, email, password_hash, version FROM users WHERE email = $1`
 	args := []any{email}
 	var u greenlight.User
-	if err := tx.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Name, &u.Password, &u.Activated, &u.Version); err != nil {
+	if err := tx.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Name, &u.Password, &u.Version); err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			return nil, greenlight.NewNotFoundError("User not found.")
@@ -65,8 +65,8 @@ func (s *UserService) Create(ctx context.Context, u *greenlight.User) error {
 	}
 	defer tx.Rollback()
 
-	query := `INSERT INTO users (name, email, password_hash, activated) VALUES ($1, $2, $3, $4) RETURNING id, version`
-	args := []any{u.ID, u.Email, u.Password, u.Activated}
+	query := `INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, version`
+	args := []any{u.ID, u.Email, u.Password}
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Version); err != nil {
 		switch {
 		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
@@ -94,8 +94,8 @@ func (s *UserService) Update(ctx context.Context, u *greenlight.User) error {
 	}
 	defer tx.Rollback()
 
-	query := `UPDATE users SET (name, email, password_hash, activated, version) = ($1, $2, $3, $4, version+1) WHERE id = $5 AND version = $6 RETURNING version`
-	args := []any{u.Name, u.Email, u.Password, u.Activated, u.ID, u.Version}
+	query := `UPDATE users SET (name, email, password_hash, version) = ($1, $2, $3, version+1) WHERE id = $5 AND version = $6 RETURNING version`
+	args := []any{u.Name, u.Email, u.Password, u.ID, u.Version}
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Version); err != nil {
 		switch {
 		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:

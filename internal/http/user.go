@@ -41,9 +41,8 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u := &greenlight.User{
-		Name:      req.Name,
-		Email:     req.Email,
-		Activated: false,
+		Name:  req.Name,
+		Email: req.Email,
 	}
 	pass, errPas := greenlight.NewPassword(req.Password)
 	if errPas != nil {

@@ -12,12 +12,11 @@ import (
 
 // User represents a user.
 type User struct {
-	ID        int64    `json:"id"`
-	Name      string   `json:"name"`
-	Email     string   `json:"email"`
-	Password  Password `json:"-"`
-	Activated bool     `json:"activated"`
-	Version   int      `json:"-"`
+	ID       int64    `json:"id"`
+	Name     string   `json:"name"`
+	Email    string   `json:"email"`
+	Password Password `json:"-"`
+	Version  int      `json:"-"`
 }
 
 // Valid returns an error if the validation fails, otherwise nil.
