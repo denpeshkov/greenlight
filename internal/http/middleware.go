@@ -29,7 +29,7 @@ type notFoundResponseWriter struct {
 
 func (w *notFoundResponseWriter) Write(data []byte) (n int, err error) {
 	if w.hijackResponseWriter.status == http.StatusNotFound {
-		data, err = json.Marshal(ErrorResponse{Msg: http.StatusText(http.StatusNotFound)})
+		data, err = json.Marshal(ErrorResponse{Msg: greenlight.ErrNotFound.Msg})
 	}
 	if err != nil {
 		return 0, err
@@ -111,6 +111,7 @@ func (s *Server) rateLimit(h http.Handler) http.Handler {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
 			s.Error(w, r, fmt.Errorf("%s: %w", op, err))
+			return
 		}
 
 		v, _ := lims.LoadOrStore(ip, clientLim{lim: rate.NewLimiter(rate.Limit(s.opts.limiterRps), s.opts.limiterBurst)})

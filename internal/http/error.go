@@ -9,16 +9,14 @@ import (
 
 // Error responds with an error and status code from the error.
 func (s *Server) Error(w http.ResponseWriter, r *http.Request, e error) {
-	logger := s.logger.With("method", r.Method, "path", r.URL.Path)
-
 	code := ErrorStatusCode(e)
 	if code == http.StatusInternalServerError {
-		logger.Error("Error processing request", "error", e.Error())
+		s.logger.Error("Error processing request", "method", r.Method, "path", r.URL.Path, "error", e.Error())
 	}
 	errResp := ErrorBody(e)
 
 	if err := s.sendResponse(w, r, code, errResp, nil); err != nil {
-		logger.Error("Sending error response", "error", err, "error_resp", errResp)
+		s.logger.Error("Sending error response", "error", err, "error_resp", errResp)
 		// In case of an error send a 500 Internal Server Error status code with an empty body
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -34,6 +32,8 @@ func ErrorStatusCode(err error) int {
 		return http.StatusConflict
 	case errors.As(err, &greenlight.RateLimitError{}):
 		return http.StatusTooManyRequests
+	case errors.As(err, &greenlight.UnauthorizedError{}):
+		return http.StatusUnauthorized
 	case errors.As(err, &greenlight.InternalError{}):
 		fallthrough
 	default:
@@ -47,6 +47,7 @@ func ErrorBody(err error) any {
 	var intErr greenlight.InternalError
 	var cftErr greenlight.ConflictError
 	var rateErr greenlight.RateLimitError
+	var unErr greenlight.UnauthorizedError
 
 	switch {
 	case errors.As(err, &nfErr):
@@ -62,6 +63,8 @@ func ErrorBody(err error) any {
 		return ErrorResponse{Msg: cftErr.Msg}
 	case errors.As(err, &rateErr):
 		return ErrorResponse{Msg: rateErr.Msg}
+	case errors.As(err, &unErr):
+		return ErrorResponse{Msg: unErr.Msg}
 	case errors.As(err, &intErr):
 		fallthrough
 	default:

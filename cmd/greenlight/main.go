@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/denpeshkov/greenlight/internal/greenlight"
 	"github.com/denpeshkov/greenlight/internal/http"
 	"github.com/denpeshkov/greenlight/internal/multierr"
 	"github.com/denpeshkov/greenlight/internal/postgres"
@@ -44,14 +45,18 @@ type Config struct {
 		connTimeout  time.Duration
 		queryTimeout time.Duration
 	}
+
+	// Authentication token
+	token struct {
+		secret string
+	}
 }
 
 func main() {
 	logger := newLogger()
 
 	cfg := Config{}
-	err := cfg.parseFlags(os.Args[1:])
-	if err != nil {
+	if err := cfg.parseFlags(os.Args[1:]); err != nil {
 		logger.Error("flags parsing error: %w", err)
 	}
 
@@ -73,6 +78,9 @@ func run(cfg *Config, logger *slog.Logger) error {
 	)
 	srv := http.NewServer(
 		cfg.http.addr,
+		postgres.NewMovieService(db),
+		postgres.NewUserService(db),
+		greenlight.NewAuthService(cfg.token.secret),
 		http.WithIdleTimeout(cfg.http.idleTimeout),
 		http.WithReadTimeout(cfg.http.readTimeout),
 		http.WithWriteTimeout(cfg.http.writeTimeout),
@@ -86,6 +94,7 @@ func run(cfg *Config, logger *slog.Logger) error {
 	shutdownErr := make(chan error)
 	go func() {
 		quit := make(chan os.Signal, 1)
+		// use NotifyContext
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 		<-quit
@@ -102,10 +111,6 @@ func run(cfg *Config, logger *slog.Logger) error {
 		return fmt.Errorf("connecting to a database: %w", err)
 	}
 	logger.Debug("database connection established")
-
-	// Setting up services
-	srv.MovieService = postgres.NewMovieService(db)
-	srv.UserService = postgres.NewUserService(db)
 
 	// Setting up HTTP server
 	err = srv.Open()
@@ -134,13 +139,16 @@ func (c *Config) parseFlags(args []string) error {
 	fs.Float64Var(&c.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
 	fs.IntVar(&c.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 
-	//PostgreSQL
+	// PostgreSQL
 	fs.StringVar(&c.pgDB.dsn, "dsn", os.Getenv("POSTGRES_DSN"), "PostgreSQL DSN")
 	fs.IntVar(&c.pgDB.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	fs.IntVar(&c.pgDB.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	fs.DurationVar(&c.pgDB.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
 	fs.DurationVar(&c.pgDB.connTimeout, "db-conn-timeout", 5*time.Second, "PostgreSQL connection timeout")
 	fs.DurationVar(&c.pgDB.queryTimeout, "db-query-timeout", 3*time.Second, "PostgreSQL query timeout")
+
+	// Authentication token
+	fs.StringVar(&c.token.secret, "token-secret", "", "Authentication token secret")
 
 	return fs.Parse(args)
 }

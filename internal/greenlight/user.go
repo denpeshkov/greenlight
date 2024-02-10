@@ -45,9 +45,6 @@ func (u *User) Valid() error {
 		err.AddViolationMsg("Password", "Must be provided.")
 	}
 
-	if len(err.violations) != 0 {
-		return err
-	}
 	return nil
 }
 
@@ -58,11 +55,33 @@ type Password []byte
 func NewPassword(plaintext string) (Password, error) {
 	op := "greenlight.NewPassword"
 
+	if err := PasswordValid(plaintext); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(plaintext), 12)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	return hash, nil
+}
+
+// PasswordValid validates a plaintext password.
+func PasswordValid(plaintext string) error {
+	err := NewInvalidError("Password is invalid.")
+	if plaintext == "" {
+		err.AddViolationMsg("Password", "Must be provided.")
+	}
+	if len(plaintext) < 8 {
+		err.AddViolationMsg("Password", "Must be at least 8 bytes long.")
+	}
+	if len(plaintext) > 72 {
+		err.AddViolationMsg("Password", "Must not be more than 72 bytes long.")
+	}
+	if len(err.Violations()) != 0 {
+		return err
+	}
+	return nil
 }
 
 // Matches tests whether the provided plaintext password matches the hashed password.

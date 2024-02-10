@@ -25,28 +25,14 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := greenlight.NewInvalidError("User is invalid.")
-	if req.Password == "" {
-		err.AddViolationMsg("Password", "Must be provided.")
-	}
-	if len(req.Password) < 8 {
-		err.AddViolationMsg("Password", "Must be at least 8 characters long.")
-	}
-	if len(req.Password) > 72 {
-		err.AddViolationMsg("Password", "Must not be more than 72 bytes long.")
-	}
-	if len(err.Violations()) != 0 {
-		s.Error(w, r, err)
-		return
-	}
-
 	u := &greenlight.User{
 		Name:  req.Name,
 		Email: req.Email,
 	}
-	pass, errPas := greenlight.NewPassword(req.Password)
-	if errPas != nil {
+	pass, err := greenlight.NewPassword(req.Password)
+	if err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
+		return
 	}
 	u.Password = pass
 
@@ -54,7 +40,7 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 		s.Error(w, r, err)
 		return
 	}
-	if err := s.UserService.Create(r.Context(), u); err != nil {
+	if err := s.userService.Create(r.Context(), u); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return
 	}

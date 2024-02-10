@@ -43,7 +43,7 @@ func (s *MovieService) Get(ctx context.Context, id int64) (*greenlight.Movie, er
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres), &m.Version); err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, greenlight.NewNotFoundError("Movie not found.")
+			return nil, greenlight.ErrNotFound
 		default:
 			return nil, fmt.Errorf("%s: movie with id=%d: %w", op, id, err)
 		}
@@ -156,7 +156,7 @@ func (s *MovieService) Delete(ctx context.Context, id int64) error {
 		return fmt.Errorf("%s: movie with id=%d: %w", op, id, err)
 	}
 	if n == 0 {
-		return greenlight.NewNotFoundError("Movie with id=%d is not found.", id)
+		return greenlight.ErrNotFound
 	}
 
 	if err := tx.Commit(); err != nil {

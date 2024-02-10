@@ -13,8 +13,9 @@ import (
 
 // Server represents an HTTP server.
 type Server struct {
-	MovieService greenlight.MovieService
-	UserService  greenlight.UserService
+	movieService greenlight.MovieService
+	userService  greenlight.UserService
+	authService  *greenlight.AuthService
 
 	opts options
 
@@ -24,11 +25,14 @@ type Server struct {
 }
 
 // NewServer returns a new instance of [Server].
-func NewServer(addr string, opts ...Option) *Server {
+func NewServer(addr string, movieService greenlight.MovieService, userService greenlight.UserService, authService *greenlight.AuthService, opts ...Option) *Server {
 	s := &Server{
-		server: &http.Server{},
-		router: http.NewServeMux(),
-		logger: newLogger(),
+		movieService: movieService,
+		userService:  userService,
+		authService:  authService,
+		server:       &http.Server{},
+		router:       http.NewServeMux(),
+		logger:       newLogger(),
 	}
 	s.server.Addr = addr
 
@@ -40,6 +44,7 @@ func NewServer(addr string, opts ...Option) *Server {
 	s.registerHealthCheckHandlers()
 	s.registerMovieHandlers()
 	s.registerUserHandlers()
+	s.registerAuthHandlers()
 
 	return s
 }

@@ -20,6 +20,9 @@ func (e InternalError) Error() string {
 	return e.Msg
 }
 
+// ErrNotFound indicates that requested resource is not found.
+var ErrNotFound = &NotFoundError{Msg: "The requested resource doesn't exist."}
+
 type NotFoundError struct {
 	Msg string
 }
@@ -95,4 +98,18 @@ func NewRateLimitError(format string, args ...any) error {
 
 func (e RateLimitError) Error() string {
 	return e.Msg
+}
+
+type UnauthorizedError struct {
+	Msg string
+}
+
+func (e UnauthorizedError) Error() string {
+	return e.Msg
+}
+
+func NewUnauthorizedError(format string, args ...any) error {
+	return UnauthorizedError{
+		Msg: fmt.Sprintf(format, args...),
+	}
 }

@@ -38,10 +38,10 @@ func (s *UserService) Get(ctx context.Context, email string) (*greenlight.User, 
 	query := `SELECT id, name, email, password_hash, version FROM users WHERE email = $1`
 	args := []any{email}
 	var u greenlight.User
-	if err := tx.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Name, &u.Password, &u.Version); err != nil {
+	if err := tx.QueryRowContext(ctx, query, args...).Scan(&u.ID, &u.Name, &u.Email, &u.Password, &u.Version); err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, greenlight.NewNotFoundError("User not found.")
+			return nil, greenlight.ErrNotFound
 		default:
 			return nil, fmt.Errorf("%s: %w", op, err)
 		}

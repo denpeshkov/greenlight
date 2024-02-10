@@ -17,6 +17,7 @@ func (s *Server) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := s.sendResponse(w, r, http.StatusOK, info, nil); err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
+		return
 	}
 }
 

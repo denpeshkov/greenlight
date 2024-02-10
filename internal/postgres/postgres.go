@@ -52,6 +52,7 @@ func (db *DB) Open() (err error) {
 	db.db.SetMaxIdleConns(db.opts.maxIdleConns)
 	db.db.SetConnMaxIdleTime(db.opts.connMaxIdleTime)
 
+	// get from caller
 	ctx, cancel := context.WithTimeout(context.Background(), db.opts.connTimeout)
 	defer cancel()
 
