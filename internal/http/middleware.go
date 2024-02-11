@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -123,6 +124,36 @@ func (s *Server) rateLimit(h http.Handler) http.Handler {
 			return
 		}
 
+		h.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) authenticate(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		op := "http.Server.authenticate"
+
+		// This indicates to any caches that the response may vary based on the value of the Authorization header in the request.
+		w.Header().Add("Vary", "Authorization")
+
+		authzHeader := r.Header.Get("Authorization")
+
+		if authzHeader == "" {
+			s.Error(w, r, fmt.Errorf("%s: %w", op, greenlight.NewUnauthorizedError("You must be authenticated to access this resource.")))
+			return
+		}
+
+		headerParts := strings.Split(authzHeader, " ")
+		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
+			s.Error(w, r, fmt.Errorf("%s: %w", op, greenlight.NewUnauthorizedError("Invalid or missing authentication token.")))
+			return
+		}
+
+		userId, err := s.authService.ParseToken(headerParts[1])
+		if err != nil {
+			s.Error(w, r, fmt.Errorf("%s: %w", op, err))
+			return
+		}
+		r = r.WithContext(greenlight.NewContextWithUserID(r.Context(), userId))
 		h.ServeHTTP(w, r)
 	})
 }

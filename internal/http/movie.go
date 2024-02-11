@@ -12,11 +12,11 @@ import (
 )
 
 func (s *Server) registerMovieHandlers() {
-	s.router.HandleFunc("GET /v1/movies/{id}", s.handleMovieGet)
-	s.router.HandleFunc("GET /v1/movies", s.handleMoviesGet)
-	s.router.HandleFunc("POST /v1/movies", s.handleMovieCreate)
-	s.router.HandleFunc("PATCH /v1/movies/{id}", s.handleMovieUpdate)
-	s.router.HandleFunc("DELETE /v1/movies/{id}", s.handleMovieDelete)
+	s.router.Handle("GET /v1/movies/{id}", s.authenticate(http.HandlerFunc(s.handleMovieGet)))
+	s.router.Handle("GET /v1/movies", s.authenticate(http.HandlerFunc(s.handleMoviesGet)))
+	s.router.Handle("POST /v1/movies", s.authenticate(http.HandlerFunc(s.handleMovieCreate)))
+	s.router.Handle("PATCH /v1/movies/{id}", s.authenticate(http.HandlerFunc(s.handleMovieUpdate)))
+	s.router.Handle("DELETE /v1/movies/{id}", s.authenticate(http.HandlerFunc(s.handleMovieDelete)))
 }
 
 // handleMovieGet handles requests to get a specified movie.

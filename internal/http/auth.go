@@ -49,7 +49,7 @@ func (s *Server) handleCreateToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := s.authService.Create(r.Context(), u.ID)
+	token, err := s.authService.CreateToken(r.Context(), u.ID)
 	if err != nil {
 		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
 		return

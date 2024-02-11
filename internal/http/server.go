@@ -53,9 +53,7 @@ func NewServer(addr string, movieService greenlight.MovieService, userService gr
 func (s *Server) Open() error {
 	op := "http.Server.Start"
 
-	handler := s.recoverPanic(s.rateLimit(s.notFound(s.methodNotAllowed(s.router))))
-
-	s.server.Handler = handler
+	s.server.Handler = s.recoverPanic(s.rateLimit(s.notFound(s.methodNotAllowed(s.router))))
 	s.server.ErrorLog = slog.NewLogLogger(s.logger.Handler(), slog.LevelError)
 
 	s.server.IdleTimeout = s.opts.idleTimeout

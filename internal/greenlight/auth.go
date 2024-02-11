@@ -19,10 +19,10 @@ func NewAuthService(secret string) *AuthService {
 	}
 }
 
-func (a *AuthService) Create(ctx context.Context, id int64) (token string, err error) {
+func (a *AuthService) CreateToken(ctx context.Context, userID int64) (token string, err error) {
 	now := time.Now()
 	claims := &jwt.RegisteredClaims{
-		Subject:   strconv.FormatInt(id, 10),
+		Subject:   strconv.FormatInt(userID, 10),
 		IssuedAt:  jwt.NewNumericDate(now),
 		NotBefore: jwt.NewNumericDate(now),
 		ExpiresAt: jwt.NewNumericDate(now.Add(24 * time.Hour)),
@@ -31,4 +31,22 @@ func (a *AuthService) Create(ctx context.Context, id int64) (token string, err e
 	}
 
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(a.secret))
+}
+
+func (a *AuthService) ParseToken(tokenString string) (userID int64, err error) {
+	token, err := jwt.Parse(
+		tokenString,
+		func(t *jwt.Token) (interface{}, error) {
+			return []byte(a.secret), nil
+		},
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuer("github.com./denpeshkov/greenlight"),
+		jwt.WithAudience("github.com./denpeshkov/greenlight"),
+	)
+
+	if err != nil {
+		return 0, NewUnauthorizedError("Invalid or missing authentication token.")
+	}
+	return strconv.ParseInt(token.Claims.(*jwt.RegisteredClaims).Subject, 10, 64)
 }
