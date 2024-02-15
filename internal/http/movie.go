@@ -12,11 +12,11 @@ import (
 )
 
 func (s *Server) registerMovieHandlers() {
-	s.router.Handle("GET /v1/movies/{id}", s.authenticate(http.HandlerFunc(s.handleMovieGet)))
-	s.router.Handle("GET /v1/movies", s.authenticate(http.HandlerFunc(s.handleMoviesGet)))
-	s.router.Handle("POST /v1/movies", s.authenticate(http.HandlerFunc(s.handleMovieCreate)))
-	s.router.Handle("PATCH /v1/movies/{id}", s.authenticate(http.HandlerFunc(s.handleMovieUpdate)))
-	s.router.Handle("DELETE /v1/movies/{id}", s.authenticate(http.HandlerFunc(s.handleMovieDelete)))
+	s.router.Handle("GET /v1/movies/{id}", http.HandlerFunc(s.handleMovieGet))
+	s.router.Handle("GET /v1/movies", http.HandlerFunc(s.handleMoviesGet))
+	s.router.Handle("POST /v1/movies", http.HandlerFunc(s.handleMovieCreate))
+	s.router.Handle("PATCH /v1/movies/{id}", http.HandlerFunc(s.handleMovieUpdate))
+	s.router.Handle("DELETE /v1/movies/{id}", http.HandlerFunc(s.handleMovieDelete))
 }
 
 // handleMovieGet handles requests to get a specified movie.
@@ -37,15 +37,15 @@ func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := struct {
-		ID          int64     `json:"id"`
-		Title       string    `json:"title"`
-		ReleaseDate time.Time `json:"release_date,omitempty"`
-		Runtime     int       `json:"runtime,omitempty"`
-		Genres      []string  `json:"genres,omitempty"`
+		ID          int64    `json:"id"`
+		Title       string   `json:"title"`
+		ReleaseDate date     `json:"release_date,omitempty"`
+		Runtime     int      `json:"runtime,omitempty"`
+		Genres      []string `json:"genres,omitempty"`
 	}{
 		ID:          m.ID,
 		Title:       m.Title,
-		ReleaseDate: m.ReleaseDate,
+		ReleaseDate: date(m.ReleaseDate),
 		Runtime:     m.Runtime,
 		Genres:      m.Genres,
 	}
@@ -108,18 +108,18 @@ func (s *Server) handleMoviesGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type respEl struct {
-		ID          int64     `json:"id"`
-		Title       string    `json:"title"`
-		ReleaseDate time.Time `json:"release_date,omitempty"`
-		Runtime     int       `json:"runtime,omitempty"`
-		Genres      []string  `json:"genres,omitempty"`
+		ID          int64    `json:"id"`
+		Title       string   `json:"title"`
+		ReleaseDate date     `json:"release_date,omitempty"`
+		Runtime     int      `json:"runtime,omitempty"`
+		Genres      []string `json:"genres,omitempty"`
 	}
 	resp := make([]*respEl, len(movies))
 	for i, m := range movies {
 		resp[i] = &respEl{
 			ID:          m.ID,
 			Title:       m.Title,
-			ReleaseDate: m.ReleaseDate,
+			ReleaseDate: date(m.ReleaseDate),
 			Runtime:     m.Runtime,
 			Genres:      m.Genres,
 		}
@@ -162,15 +162,15 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := struct {
-		ID          int64     `json:"id"`
-		Title       string    `json:"title"`
-		ReleaseDate time.Time `json:"release_date,omitempty"`
-		Runtime     int       `json:"runtime,omitempty"`
-		Genres      []string  `json:"genres,omitempty"`
+		ID          int64    `json:"id"`
+		Title       string   `json:"title"`
+		ReleaseDate date     `json:"release_date,omitempty"`
+		Runtime     int      `json:"runtime,omitempty"`
+		Genres      []string `json:"genres,omitempty"`
 	}{
 		ID:          m.ID,
 		Title:       m.Title,
-		ReleaseDate: m.ReleaseDate,
+		ReleaseDate: date(m.ReleaseDate),
 		Runtime:     m.Runtime,
 		Genres:      m.Genres,
 	}
@@ -235,15 +235,15 @@ func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := struct {
-		ID          int64     `json:"id"`
-		Title       string    `json:"title"`
-		ReleaseDate time.Time `json:"release_date,omitempty"`
-		Runtime     int       `json:"runtime,omitempty"`
-		Genres      []string  `json:"genres,omitempty"`
+		ID          int64    `json:"id"`
+		Title       string   `json:"title"`
+		ReleaseDate date     `json:"release_date,omitempty"`
+		Runtime     int      `json:"runtime,omitempty"`
+		Genres      []string `json:"genres,omitempty"`
 	}{
 		ID:          m.ID,
 		Title:       m.Title,
-		ReleaseDate: m.ReleaseDate,
+		ReleaseDate: date(m.ReleaseDate),
 		Runtime:     m.Runtime,
 		Genres:      m.Genres,
 	}
