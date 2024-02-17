@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
+	"github.com/denpeshkov/greenlight/internal/multierr"
 )
 
 // UserService represents a service for managing users backed by PostgreSQL.
@@ -23,15 +23,15 @@ func NewUserService(db *DB) *UserService {
 	}
 }
 
-func (s *UserService) Get(ctx context.Context, email string) (*greenlight.User, error) {
-	op := "postgres.UserService.Get"
+func (s *UserService) Get(ctx context.Context, email string) (_ *greenlight.User, err error) {
+	defer multierr.Wrap(&err, "postgres.UserService.Get")
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
 
 	tx, err := s.db.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 	defer tx.Rollback()
 
@@ -43,25 +43,25 @@ func (s *UserService) Get(ctx context.Context, email string) (*greenlight.User, 
 		case errors.Is(err, sql.ErrNoRows):
 			return nil, greenlight.ErrNotFound
 		default:
-			return nil, fmt.Errorf("%s: %w", op, err)
+			return nil, err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 	return &u, nil
 }
 
-func (s *UserService) Create(ctx context.Context, u *greenlight.User) error {
-	op := "postgres.UserService.Create"
+func (s *UserService) Create(ctx context.Context, u *greenlight.User) (err error) {
+	defer multierr.Wrap(&err, "postgres.UserService.Create")
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
 
 	tx, err := s.db.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	defer tx.Rollback()
 
@@ -72,25 +72,25 @@ func (s *UserService) Create(ctx context.Context, u *greenlight.User) error {
 		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
 			return greenlight.NewConflictError("A user with this email already exists.")
 		default:
-			return fmt.Errorf("%s: %w", op, err)
+			return err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	return nil
 }
 
-func (s *UserService) Update(ctx context.Context, u *greenlight.User) error {
-	op := "postgres.UserService.Update"
+func (s *UserService) Update(ctx context.Context, u *greenlight.User) (err error) {
+	defer multierr.Wrap(&err, "postgres.UserService.Update")
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
 
 	tx, err := s.db.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	defer tx.Rollback()
 
@@ -101,12 +101,12 @@ func (s *UserService) Update(ctx context.Context, u *greenlight.User) error {
 		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
 			return greenlight.NewConflictError("A user with this email already exists.")
 		default:
-			return fmt.Errorf("%s: %w", op, err)
+			return err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
+	"github.com/denpeshkov/greenlight/internal/multierr"
 	"github.com/lib/pq"
 )
 
@@ -25,15 +26,15 @@ func NewMovieService(db *DB) *MovieService {
 	}
 }
 
-func (s *MovieService) Get(ctx context.Context, id int64) (*greenlight.Movie, error) {
-	op := "postgres.MovieService.Get"
+func (s *MovieService) Get(ctx context.Context, id int64) (_ *greenlight.Movie, err error) {
+	defer multierr.Wrap(&err, "postgres.MovieService.Get(%d)", id)
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
 
 	tx, err := s.db.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 	defer tx.Rollback()
 
@@ -45,25 +46,25 @@ func (s *MovieService) Get(ctx context.Context, id int64) (*greenlight.Movie, er
 		case errors.Is(err, sql.ErrNoRows):
 			return nil, greenlight.ErrNotFound
 		default:
-			return nil, fmt.Errorf("%s: movie with id=%d: %w", op, id, err)
+			return nil, err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 	return &m, nil
 }
 
-func (s *MovieService) GetAll(ctx context.Context, filter greenlight.MovieFilter) ([]*greenlight.Movie, error) {
-	op := "postgres.MovieService.GetAll"
+func (s *MovieService) GetAll(ctx context.Context, filter greenlight.MovieFilter) (_ []*greenlight.Movie, err error) {
+	defer multierr.Wrap(&err, "postgres.MovieService.GetAll")
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
 
 	tx, err := s.db.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 	defer tx.Rollback()
 
@@ -81,7 +82,7 @@ func (s *MovieService) GetAll(ctx context.Context, filter greenlight.MovieFilter
 		LIMIT $3 OFFSET $4`, sortCol, sortDir)
 	rs, err := tx.QueryContext(ctx, query, filter.Title, pq.Array(filter.Genres), filter.PageSize, (filter.Page-1)*filter.PageSize)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 	defer rs.Close()
 
@@ -89,29 +90,29 @@ func (s *MovieService) GetAll(ctx context.Context, filter greenlight.MovieFilter
 	for rs.Next() {
 		var m greenlight.Movie
 		if err := rs.Scan(&m.ID, &m.Title, &m.ReleaseDate, &m.Runtime, pq.Array(&m.Genres), &m.Version); err != nil {
-			return nil, fmt.Errorf("%s: %w", op, err)
+			return nil, err
 		}
 		movies = append(movies, &m)
 	}
 	if err := rs.Err(); err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 	return movies, nil
 }
 
-func (s *MovieService) Update(ctx context.Context, m *greenlight.Movie) error {
-	op := "postgres.MovieService.Update"
+func (s *MovieService) Update(ctx context.Context, m *greenlight.Movie) (err error) {
+	defer multierr.Wrap(&err, "postgres.MovieService.Update(%d)", m.ID)
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
 
 	tx, err := s.db.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	defer tx.Rollback()
 
@@ -120,27 +121,27 @@ func (s *MovieService) Update(ctx context.Context, m *greenlight.Movie) error {
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(&m.Version); err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return greenlight.NewConflictError("Conflicting change for the movie with id=%d", m.ID)
+			return greenlight.NewConflictError("Conflicting change")
 		default:
-			return fmt.Errorf("%s: movie with id=%d: %w", op, m.ID, err)
+			return err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	return nil
 }
 
-func (s *MovieService) Delete(ctx context.Context, id int64) error {
-	op := "postgres.MovieService.Delete"
+func (s *MovieService) Delete(ctx context.Context, id int64) (err error) {
+	defer multierr.Wrap(&err, "postgres.MovieService.Delete(%d)", id)
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
 
 	tx, err := s.db.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	defer tx.Rollback()
 
@@ -148,43 +149,43 @@ func (s *MovieService) Delete(ctx context.Context, id int64) error {
 	args := []any{id}
 	rs, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
-		return fmt.Errorf("%s: movie with id=%d: %w", op, id, err)
+		return err
 	}
 
 	n, err := rs.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("%s: movie with id=%d: %w", op, id, err)
+		return err
 	}
 	if n == 0 {
 		return greenlight.ErrNotFound
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	return nil
 }
 
-func (s *MovieService) Create(ctx context.Context, m *greenlight.Movie) error {
-	op := "postgres.MovieService.Create"
+func (s *MovieService) Create(ctx context.Context, m *greenlight.Movie) (err error) {
+	defer multierr.Wrap(&err, "postgres.MovieService.Create")
 
 	ctx, cancel := context.WithTimeout(ctx, s.db.opts.queryTimeout)
 	defer cancel()
 
 	tx, err := s.db.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	defer tx.Rollback()
 
 	query := `INSERT INTO movies (title, release_date, runtime, genres) VALUES ($1, $2, $3, $4) RETURNING id, version`
 	args := []any{m.Title, m.ReleaseDate, m.Runtime, pq.Array(m.Genres)}
 	if err := tx.QueryRowContext(ctx, query, args...).Scan(&m.ID, &m.Version); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	return nil
 }

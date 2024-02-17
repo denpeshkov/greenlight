@@ -3,10 +3,10 @@ package greenlight
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/mail"
 	"unicode/utf8"
 
+	"github.com/denpeshkov/greenlight/internal/multierr"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -52,16 +52,16 @@ func (u *User) Valid() error {
 type Password []byte
 
 // NewPasswords generates a hashed password from the plaintext password.
-func NewPassword(plaintext string) (Password, error) {
-	op := "greenlight.NewPassword"
+func NewPassword(plaintext string) (_ Password, err error) {
+	defer multierr.Wrap(&err, "greenlight.NewPassword")
 
 	if err := PasswordValid(plaintext); err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(plaintext), 12)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, err
 	}
 	return hash, nil
 }
@@ -85,15 +85,15 @@ func PasswordValid(plaintext string) error {
 }
 
 // Matches tests whether the provided plaintext password matches the hashed password.
-func (p *Password) Matches(plaintext string) (bool, error) {
-	op := "greenlight.password.Matches"
+func (p *Password) Matches(plaintext string) (_ bool, err error) {
+	defer multierr.Wrap(&err, "greenlight.password.Matches")
 
 	if err := bcrypt.CompareHashAndPassword(*p, []byte(plaintext)); err != nil {
 		switch {
 		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
 			return false, nil
 		default:
-			return false, fmt.Errorf("%s: %w", op, err)
+			return false, err
 		}
 	}
 	return true, nil

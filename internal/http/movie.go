@@ -9,31 +9,30 @@ import (
 	"time"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
+	"github.com/denpeshkov/greenlight/internal/multierr"
 )
 
 func (s *Server) registerMovieHandlers() {
-	s.router.Handle("GET /v1/movies/{id}", http.HandlerFunc(s.handleMovieGet))
-	s.router.Handle("GET /v1/movies", http.HandlerFunc(s.handleMoviesGet))
-	s.router.Handle("POST /v1/movies", http.HandlerFunc(s.handleMovieCreate))
-	s.router.Handle("PATCH /v1/movies/{id}", http.HandlerFunc(s.handleMovieUpdate))
-	s.router.Handle("DELETE /v1/movies/{id}", http.HandlerFunc(s.handleMovieDelete))
+	s.router.Handle("GET /v1/movies/{id}", s.handlerFunc(s.handleMovieGet))
+	s.router.Handle("GET /v1/movies", s.handlerFunc(s.handleMoviesGet))
+	s.router.Handle("POST /v1/movies", s.handlerFunc(s.handleMovieCreate))
+	s.router.Handle("PATCH /v1/movies/{id}", s.handlerFunc(s.handleMovieUpdate))
+	s.router.Handle("DELETE /v1/movies/{id}", s.handlerFunc(s.handleMovieDelete))
 }
 
 // handleMovieGet handles requests to get a specified movie.
-func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
-	op := "http.Server.handleMovieGet"
+func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) (err error) {
+	defer multierr.Wrap(&err, "http.Server.handleMovieGet")
 
 	idRaw := r.PathValue("id")
 	id, err := strconv.ParseInt(idRaw, 10, 64)
 	if err != nil || id < 0 {
-		s.Error(w, r, greenlight.NewInvalidError(`Invalid "ID" parameter format: %s`, idRaw))
-		return
+		return greenlight.NewInvalidError(`Invalid "ID" parameter format: %s`, idRaw)
 	}
 
 	m, err := s.movieService.Get(r.Context(), id)
 	if err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
 
 	resp := struct {
@@ -51,14 +50,14 @@ func (s *Server) handleMovieGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.sendResponse(w, r, http.StatusOK, resp, nil); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
+	return nil
 }
 
 // handleMoviesGet handles requests to get movies based on provided filter parameters.
-func (s *Server) handleMoviesGet(w http.ResponseWriter, r *http.Request) {
-	op := "http.Server.handleMoviesGet"
+func (s *Server) handleMoviesGet(w http.ResponseWriter, r *http.Request) (err error) {
+	defer multierr.Wrap(&err, "http.Server.handleMoviesGet")
 
 	filter := greenlight.MovieFilter{
 		Title:    "",
@@ -78,8 +77,7 @@ func (s *Server) handleMoviesGet(w http.ResponseWriter, r *http.Request) {
 		pageRaw := vs.Get("page")
 		page, err := strconv.Atoi(pageRaw)
 		if err != nil {
-			s.Error(w, r, greenlight.NewInvalidError(`Invalid "page" parameter format: %s`, pageRaw))
-			return
+			return greenlight.NewInvalidError(`Invalid "page" parameter format: %s`, pageRaw)
 		}
 		filter.Page = page
 	}
@@ -87,8 +85,7 @@ func (s *Server) handleMoviesGet(w http.ResponseWriter, r *http.Request) {
 		pageSzRaw := vs.Get("page_size")
 		pageSz, err := strconv.Atoi(pageSzRaw)
 		if err != nil {
-			s.Error(w, r, greenlight.NewInvalidError(`Invalid "page_size" parameter format: %s`, pageSzRaw))
-			return
+			return greenlight.NewInvalidError(`Invalid "page_size" parameter format: %s`, pageSzRaw)
 		}
 		filter.PageSize = pageSz
 	}
@@ -97,14 +94,12 @@ func (s *Server) handleMoviesGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := filter.Valid(); err != nil {
-		s.Error(w, r, err)
-		return
+		return err
 	}
 
 	movies, err := s.movieService.GetAll(r.Context(), filter)
 	if err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
 
 	type respEl struct {
@@ -126,14 +121,14 @@ func (s *Server) handleMoviesGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.sendResponse(w, r, http.StatusOK, resp, nil); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
+	return nil
 }
 
 // handleMovieCreate handles requests to create a movie.
-func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
-	op := "http.Server.handleMovieCreate"
+func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) (err error) {
+	defer multierr.Wrap(&err, "http.Server.handleMovieCreate")
 
 	var req struct {
 		Title       string   `json:"title"`
@@ -142,8 +137,7 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 		Genres      []string `json:"genres"`
 	}
 	if err := s.readRequest(w, r, &req); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
 
 	m := &greenlight.Movie{
@@ -153,12 +147,10 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 		Genres:      req.Genres,
 	}
 	if err := m.Valid(); err != nil {
-		s.Error(w, r, err)
-		return
+		return err
 	}
 	if err := s.movieService.Create(r.Context(), m); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
 
 	resp := struct {
@@ -178,26 +170,24 @@ func (s *Server) handleMovieCreate(w http.ResponseWriter, r *http.Request) {
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/v1/movies/%d", resp.ID))
 	if err := s.sendResponse(w, r, http.StatusCreated, resp, headers); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
+	return nil
 }
 
 // handleMovieUpdate handles requests to update a specified movie.
-func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) {
-	op := "http.Server.handleMovieUpdate"
+func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) (err error) {
+	defer multierr.Wrap(&err, "http.Server.handleMovieUpdate")
 
 	idRaw := r.PathValue("id")
 	id, err := strconv.ParseInt(idRaw, 10, 64)
 	if err != nil || id < 0 {
-		s.Error(w, r, greenlight.NewInvalidError("Invalid ID format: %s", idRaw))
-		return
+		return greenlight.NewInvalidError("Invalid ID format: %s", idRaw)
 	}
 
 	m, err := s.movieService.Get(r.Context(), id)
 	if err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
 
 	// use pointers to allow partial updates
@@ -208,8 +198,7 @@ func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) {
 		Genres      []string `json:"genres"`
 	}
 	if err := s.readRequest(w, r, &req); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
 
 	if req.Title != nil {
@@ -226,12 +215,10 @@ func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := m.Valid(); err != nil {
-		s.Error(w, r, err)
-		return
+		return err
 	}
 	if err := s.movieService.Update(r.Context(), m); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
 
 	resp := struct {
@@ -249,30 +236,28 @@ func (s *Server) handleMovieUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.sendResponse(w, r, http.StatusOK, resp, nil); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
+	return nil
 }
 
 // handleMovieDelete handles requests to delete a specified movie.
-func (s *Server) handleMovieDelete(w http.ResponseWriter, r *http.Request) {
-	op := "http.Server.handleMovieDelete"
+func (s *Server) handleMovieDelete(w http.ResponseWriter, r *http.Request) (err error) {
+	defer multierr.Wrap(&err, "http.Server.handleMovieDelete")
 
 	idRaw := r.PathValue("id")
 	id, err := strconv.ParseInt(idRaw, 10, 64)
 	if err != nil || id < 0 {
-		s.Error(w, r, greenlight.NewInvalidError("Invalid ID format: %s", idRaw))
-		return
+		return greenlight.NewInvalidError("Invalid ID format: %s", idRaw)
 	}
 
 	if err := s.movieService.Delete(r.Context(), id); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
 	if err := s.sendResponse(w, r, http.StatusNoContent, nil, nil); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
+	return nil
 }
 
 // date represents a date in the format "YYYY-MM-DD".

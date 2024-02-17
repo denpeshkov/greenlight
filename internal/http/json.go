@@ -2,22 +2,22 @@ package http
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/textproto"
 	"strings"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
+	"github.com/denpeshkov/greenlight/internal/multierr"
 )
 
 // sendResponse sends a JSON response with a given status.
 // In case of an error, response (and status) is not send and error is returned.
-func (s *Server) sendResponse(w http.ResponseWriter, r *http.Request, status int, resp any, headers http.Header) error {
-	op := "http.Server.sendResponse"
+func (s *Server) sendResponse(w http.ResponseWriter, r *http.Request, status int, resp any, headers http.Header) (err error) {
+	defer multierr.Wrap(&err, "http.Server.sendResponse")
 
 	js, err := json.Marshal(resp)
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	for k, v := range headers {
 		k = textproto.CanonicalMIMEHeaderKey(k)
@@ -26,7 +26,7 @@ func (s *Server) sendResponse(w http.ResponseWriter, r *http.Request, status int
 	w.WriteHeader(status)
 	_, err = w.Write(js)
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	return nil
 }

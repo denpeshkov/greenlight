@@ -3,12 +3,12 @@ package http
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
+	"github.com/denpeshkov/greenlight/internal/multierr"
 )
 
 // Server represents an HTTP server.
@@ -50,8 +50,8 @@ func NewServer(addr string, movieService greenlight.MovieService, userService gr
 }
 
 // Open starts an HTTP server.
-func (s *Server) Open() error {
-	op := "http.Server.Start"
+func (s *Server) Open() (err error) {
+	defer multierr.Wrap(&err, "http.Server.Start")
 
 	s.server.Handler = s.recoverPanic(s.rateLimit(s.notFound(s.methodNotAllowed(s.router))))
 	s.server.ErrorLog = slog.NewLogLogger(s.logger.Handler(), slog.LevelError)
@@ -60,25 +60,33 @@ func (s *Server) Open() error {
 	s.server.ReadTimeout = s.opts.readTimeout
 	s.server.WriteTimeout = s.opts.writeTimeout
 
-	err := s.server.ListenAndServe()
+	err = s.server.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	return nil
 }
 
 // Close gracefully shuts down the server.
-func (s *Server) Close() error {
-	op := "http.Server.Close"
+func (s *Server) Close() (err error) {
+	defer multierr.Wrap(&err, "http.Server.Close")
 
 	ctx, cancel := context.WithTimeout(context.Background(), s.opts.shutdownTimeout)
 	defer cancel()
 
-	err := s.server.Shutdown(ctx)
+	err = s.server.Shutdown(ctx)
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	return nil
+}
+
+func (s *Server) handlerFunc(h func(http.ResponseWriter, *http.Request) error) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := h(w, r); err != nil {
+			s.Error(w, r, err)
+		}
+	})
 }
 
 func newLogger() *slog.Logger {

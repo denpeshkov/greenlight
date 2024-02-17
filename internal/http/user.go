@@ -1,19 +1,19 @@
 package http
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/denpeshkov/greenlight/internal/greenlight"
+	"github.com/denpeshkov/greenlight/internal/multierr"
 )
 
 func (s *Server) registerUserHandlers() {
-	s.router.HandleFunc("POST /v1/users", s.handleUserCreate)
+	s.router.Handle("POST /v1/users", s.handlerFunc(s.handleUserCreate))
 }
 
 // handleUserCreate handles requests to create (register) a user.
-func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
-	op := "http.Server.handleUserCreate"
+func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) (err error) {
+	defer multierr.Wrap(&err, "http.Server.handleUserCreate")
 
 	var req struct {
 		Name     string `json:"name"`
@@ -21,8 +21,7 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := s.readRequest(w, r, &req); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
 
 	u := &greenlight.User{
@@ -31,18 +30,15 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	pass, err := greenlight.NewPassword(req.Password)
 	if err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
 	u.Password = pass
 
 	if err := u.Valid(); err != nil {
-		s.Error(w, r, err)
-		return
+		return err
 	}
 	if err := s.userService.Create(r.Context(), u); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
 
 	resp := struct {
@@ -56,7 +52,7 @@ func (s *Server) handleUserCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.sendResponse(w, r, http.StatusCreated, resp, nil); err != nil {
-		s.Error(w, r, fmt.Errorf("%s: %w", op, err))
-		return
+		return err
 	}
+	return nil
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 
@@ -38,14 +37,14 @@ func NewDB(dsn string, opts ...Option) *DB {
 
 // Open returns a new instance of an established database connection.
 func (db *DB) Open() (err error) {
-	op := "postgres.DB.Open"
+	defer multierr.Wrap(&err, "postgres.DB.Open")
 
 	if db.DSN == "" {
 		return errors.New("data source name (DSN) required")
 	}
 
 	if db.db, err = sql.Open("postgres", db.DSN); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 
 	db.db.SetMaxOpenConns(db.opts.maxOpenConns)
@@ -57,22 +56,22 @@ func (db *DB) Open() (err error) {
 	defer cancel()
 
 	if err = db.db.PingContext(ctx); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	if err = db.Migrate(UP); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	return nil
 }
 
 // Close gracefully shuts down the database.
-func (db *DB) Close() error {
-	op := "postgres.DB.Close"
+func (db *DB) Close() (err error) {
+	defer multierr.Wrap(&err, "postgres.DB.Close")
 
 	err1 := db.Migrate(DOWN)
 	err2 := db.db.Close()
 	if err := multierr.Join(err2, err1); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		return err
 	}
 	return nil
 }

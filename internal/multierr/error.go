@@ -3,6 +3,7 @@ package multierr
 
 import (
 	"bytes"
+	"fmt"
 )
 
 // joinError represents an error that wraps the errors.
@@ -59,4 +60,11 @@ func (e joinError) Unwrap() []error {
 		return nil
 	}
 	return e
+}
+
+// Wrap adds context to the error and allows unwrapping the result to recover the original error.
+func Wrap(err *error, format string, args ...any) {
+	if *err != nil {
+		*err = fmt.Errorf("%s: %w", fmt.Sprintf(format, args...), *err)
+	}
 }
