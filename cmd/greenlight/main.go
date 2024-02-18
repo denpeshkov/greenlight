@@ -151,7 +151,7 @@ func (c *Config) parseFlags(args []string) error {
 	fs.IntVar(&c.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 
 	// PostgreSQL
-	fs.StringVar(&c.pgDB.dsn, "dsn", os.Getenv("POSTGRES_DSN"), "PostgreSQL DSN")
+	fs.StringVar(&c.pgDB.dsn, "dsn", "", "PostgreSQL DSN")
 	fs.IntVar(&c.pgDB.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	fs.IntVar(&c.pgDB.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	fs.DurationVar(&c.pgDB.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")

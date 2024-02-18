@@ -26,4 +26,4 @@ test/cover: ## Test and cover
 run: ## build and run app
 	go vet ./...
 	go build -race -o ./bin/greenlight ./cmd/greenlight
-	./bin/greenlight -addr=:8080 -token-secret=my_secret
+	./bin/greenlight -addr=:8080 -dsn=${POSTGRES_DSN} -token-secret=my_secret
