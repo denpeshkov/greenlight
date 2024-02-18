@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -14,59 +15,70 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// hijackResponseWriter records status of the HTTP response.
-type hijackResponseWriter struct {
+// statusResponseWriter records status of the HTTP response.
+type statusResponseWriter struct {
 	http.ResponseWriter
 	status int
 }
 
-func (w *hijackResponseWriter) WriteHeader(statusCode int) {
+func newStatusResponseWriter(w http.ResponseWriter) *statusResponseWriter {
+	// WriteHeader() is not called if our response implicitly returns 200 OK, so we default to that status code.
+	return &statusResponseWriter{
+		ResponseWriter: w,
+		status:         http.StatusOK,
+	}
+}
+
+func (w *statusResponseWriter) WriteHeader(statusCode int) {
 	w.status = statusCode
 	w.ResponseWriter.WriteHeader(statusCode)
 }
 
+// Unwrap is used by a [http.ResponseController].
+func (w *statusResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
 type notFoundResponseWriter struct {
-	hijackResponseWriter
+	*statusResponseWriter
 }
 
 func (w *notFoundResponseWriter) Write(data []byte) (n int, err error) {
-	if w.hijackResponseWriter.status == http.StatusNotFound {
+	if w.statusResponseWriter.status == http.StatusNotFound {
 		data, err = json.Marshal(ErrorResponse{Msg: greenlight.ErrNotFound.Msg})
 	}
 	if err != nil {
 		return 0, err
 	}
-	return w.hijackResponseWriter.Write(data)
+	return w.statusResponseWriter.Write(data)
 }
 
 // notFound returns a request handler that handles [http.StatusNotFound] status code.
 func (s *Server) notFound(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hw := hijackResponseWriter{ResponseWriter: w, status: http.StatusOK}
-		nfw := &notFoundResponseWriter{hijackResponseWriter: hw}
+		nfw := &notFoundResponseWriter{statusResponseWriter: newStatusResponseWriter(w)}
 		h.ServeHTTP(nfw, r)
 	})
 }
 
 type methodNotAllowedResponseWriter struct {
-	hijackResponseWriter
+	*statusResponseWriter
 }
 
 func (w *methodNotAllowedResponseWriter) Write(data []byte) (n int, err error) {
-	if w.hijackResponseWriter.status == http.StatusMethodNotAllowed {
+	if w.statusResponseWriter.status == http.StatusMethodNotAllowed {
 		data, err = json.Marshal(ErrorResponse{Msg: http.StatusText(http.StatusMethodNotAllowed)})
 	}
 	if err != nil {
 		return 0, err
 	}
-	return w.hijackResponseWriter.Write(data)
+	return w.statusResponseWriter.Write(data)
 }
 
 // methodNotAllowed returns a request handler that handles [http.StatusMethodNotAllowed] status code.
 func (s *Server) methodNotAllowed(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		hw := hijackResponseWriter{ResponseWriter: w, status: http.StatusOK}
-		mrw := &methodNotAllowedResponseWriter{hijackResponseWriter: hw}
+		mrw := &methodNotAllowedResponseWriter{statusResponseWriter: newStatusResponseWriter(w)}
 		h.ServeHTTP(mrw, r)
 	})
 }
@@ -165,17 +177,24 @@ func (s *Server) metrics(next http.Handler) http.Handler {
 		totalRequestsReceived           = expvar.NewInt("total_requests_received")
 		totalResponsesSent              = expvar.NewInt("total_responses_sent")
 		totalProcessingTimeMicroseconds = expvar.NewInt("total_processing_time_μs")
+		totalResponsesSentByStatus      = expvar.NewMap("total_responses_sent_by_status")
 	)
-	// The following code will be run for every request...
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { // Record the time that we started to process the request.
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mw, ok := w.(*statusResponseWriter)
+		if !ok {
+			mw = newStatusResponseWriter(w)
+		}
+
 		start := time.Now()
-		// Use the Add() method to increment the number of requests received by 1.
 		totalRequestsReceived.Add(1)
-		// Call the next handler in the chain.
-		next.ServeHTTP(w, r)
-		// On the way back up the middleware chain, increment the number of responses // sent by 1.
+
+		next.ServeHTTP(mw, r)
+
 		totalResponsesSent.Add(1)
-		// Calculate the number of microseconds since we began to process the request, // then increment the total processing time by this amount.
+
+		totalResponsesSentByStatus.Add(strconv.Itoa(mw.status), 1)
+
 		duration := time.Since(start).Microseconds()
 		totalProcessingTimeMicroseconds.Add(duration)
 	})
