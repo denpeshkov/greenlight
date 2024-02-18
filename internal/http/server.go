@@ -53,7 +53,13 @@ func NewServer(addr string, movieService greenlight.MovieService, userService gr
 func (s *Server) Open() (err error) {
 	defer multierr.Wrap(&err, "http.Server.Start")
 
-	s.server.Handler = s.recoverPanic(s.rateLimit(s.notFound(s.methodNotAllowed(s.router))))
+	var h http.Handler = s.router
+	h = s.methodNotAllowed(h)
+	h = s.notFound(h)
+	h = s.rateLimit(h)
+	h = s.recoverPanic(h)
+	s.server.Handler = h
+
 	s.server.ErrorLog = slog.NewLogLogger(s.logger.Handler(), slog.LevelError)
 
 	s.server.IdleTimeout = s.opts.idleTimeout
@@ -81,6 +87,7 @@ func (s *Server) Close() (err error) {
 	return nil
 }
 
+// handlerFunc converts a handler to a [http.Handler].
 func (s *Server) handlerFunc(h func(http.ResponseWriter, *http.Request) error) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := h(w, r); err != nil {

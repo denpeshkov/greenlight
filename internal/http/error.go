@@ -24,17 +24,17 @@ func (s *Server) Error(w http.ResponseWriter, r *http.Request, e error) {
 
 func ErrorStatusCode(err error) int {
 	switch {
-	case errors.As(err, &greenlight.NotFoundError{}):
+	case errors.As(err, new(*greenlight.NotFoundError)):
 		return http.StatusNotFound
-	case errors.As(err, &greenlight.InvalidError{}):
+	case errors.As(err, new(*greenlight.InvalidError)):
 		return http.StatusUnprocessableEntity
-	case errors.As(err, &greenlight.ConflictError{}):
+	case errors.As(err, new(*greenlight.ConflictError)):
 		return http.StatusConflict
-	case errors.As(err, &greenlight.RateLimitError{}):
+	case errors.As(err, new(*greenlight.RateLimitError)):
 		return http.StatusTooManyRequests
-	case errors.As(err, &greenlight.UnauthorizedError{}):
+	case errors.As(err, new(*greenlight.UnauthorizedError)):
 		return http.StatusUnauthorized
-	case errors.As(err, &greenlight.InternalError{}):
+	case errors.As(err, new(*greenlight.InternalError)):
 		fallthrough
 	default:
 		return http.StatusInternalServerError
@@ -42,12 +42,12 @@ func ErrorStatusCode(err error) int {
 }
 
 func ErrorBody(err error) any {
-	var nfErr greenlight.NotFoundError
-	var invErr greenlight.InvalidError
-	var intErr greenlight.InternalError
-	var cftErr greenlight.ConflictError
-	var rateErr greenlight.RateLimitError
-	var unErr greenlight.UnauthorizedError
+	var nfErr *greenlight.NotFoundError
+	var invErr *greenlight.InvalidError
+	var intErr *greenlight.InternalError
+	var cftErr *greenlight.ConflictError
+	var rateErr *greenlight.RateLimitError
+	var unErr *greenlight.UnauthorizedError
 
 	switch {
 	case errors.As(err, &nfErr):

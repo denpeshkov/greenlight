@@ -10,13 +10,13 @@ type InternalError struct {
 	Msg string
 }
 
-func NewInternalError(format string, args ...any) InternalError {
-	return InternalError{
+func NewInternalError(format string, args ...any) *InternalError {
+	return &InternalError{
 		Msg: fmt.Sprintf(format, args...),
 	}
 }
 
-func (e InternalError) Error() string {
+func (e *InternalError) Error() string {
 	return e.Msg
 }
 
@@ -27,13 +27,13 @@ type NotFoundError struct {
 	Msg string
 }
 
-func NewNotFoundError(format string, args ...any) NotFoundError {
-	return NotFoundError{
+func NewNotFoundError(format string, args ...any) *NotFoundError {
+	return &NotFoundError{
 		Msg: fmt.Sprintf(format, args...),
 	}
 }
 
-func (e NotFoundError) Error() string {
+func (e *NotFoundError) Error() string {
 	return e.Msg
 }
 
@@ -42,33 +42,33 @@ type InvalidError struct {
 	violations map[string]error
 }
 
-func NewInvalidError(format string, args ...any) InvalidError {
-	return InvalidError{
+func NewInvalidError(format string, args ...any) *InvalidError {
+	return &InvalidError{
 		Msg:        fmt.Sprintf(format, args...),
 		violations: make(map[string]error),
 	}
 }
 
-func (e InvalidError) Error() string {
+func (e *InvalidError) Error() string {
 	if len(e.violations) == 0 {
 		return e.Msg
 	}
 	return fmt.Sprintf("%s: %v", e.Msg, e.violations)
 }
 
-func (e InvalidError) AddViolation(field string, err error) {
+func (e *InvalidError) AddViolation(field string, err error) {
 	e.violations[field] = multierr.Join(e.violations[field], err)
 }
 
-func (e InvalidError) AddViolationMsg(field string, msg string) {
+func (e *InvalidError) AddViolationMsg(field string, msg string) {
 	e.violations[field] = multierr.Join(e.violations[field], fmt.Errorf(msg))
 }
 
-func (e InvalidError) FieldViolation(field string) error {
+func (e *InvalidError) FieldViolation(field string) error {
 	return e.violations[field]
 }
 
-func (e InvalidError) Violations() map[string]error {
+func (e *InvalidError) Violations() map[string]error {
 	return e.violations
 }
 
@@ -76,13 +76,13 @@ type ConflictError struct {
 	Msg string
 }
 
-func NewConflictError(format string, args ...any) error {
-	return ConflictError{
+func NewConflictError(format string, args ...any) *ConflictError {
+	return &ConflictError{
 		Msg: fmt.Sprintf(format, args...),
 	}
 }
 
-func (e ConflictError) Error() string {
+func (e *ConflictError) Error() string {
 	return e.Msg
 }
 
@@ -90,13 +90,13 @@ type RateLimitError struct {
 	Msg string
 }
 
-func NewRateLimitError(format string, args ...any) error {
-	return RateLimitError{
+func NewRateLimitError(format string, args ...any) *RateLimitError {
+	return &RateLimitError{
 		Msg: fmt.Sprintf(format, args...),
 	}
 }
 
-func (e RateLimitError) Error() string {
+func (e *RateLimitError) Error() string {
 	return e.Msg
 }
 
@@ -104,12 +104,12 @@ type UnauthorizedError struct {
 	Msg string
 }
 
-func (e UnauthorizedError) Error() string {
-	return e.Msg
-}
-
-func NewUnauthorizedError(format string, args ...any) error {
-	return UnauthorizedError{
+func NewUnauthorizedError(format string, args ...any) *UnauthorizedError {
+	return &UnauthorizedError{
 		Msg: fmt.Sprintf(format, args...),
 	}
+}
+
+func (e *UnauthorizedError) Error() string {
+	return e.Msg
 }
