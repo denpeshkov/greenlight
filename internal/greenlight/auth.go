@@ -34,8 +34,11 @@ func (a *AuthService) CreateToken(ctx context.Context, userID int64) (token stri
 }
 
 func (a *AuthService) ParseToken(tokenString string) (userID int64, err error) {
-	token, err := jwt.Parse(
+	var claims jwt.RegisteredClaims
+
+	if _, err := jwt.ParseWithClaims(
 		tokenString,
+		&claims,
 		func(t *jwt.Token) (interface{}, error) {
 			return []byte(a.secret), nil
 		},
@@ -43,10 +46,8 @@ func (a *AuthService) ParseToken(tokenString string) (userID int64, err error) {
 		jwt.WithExpirationRequired(),
 		jwt.WithIssuer("github.com./denpeshkov/greenlight"),
 		jwt.WithAudience("github.com./denpeshkov/greenlight"),
-	)
-
-	if err != nil {
+	); err != nil {
 		return 0, NewUnauthorizedError("Invalid or missing authentication token.")
 	}
-	return strconv.ParseInt(token.Claims.(*jwt.RegisteredClaims).Subject, 10, 64)
+	return strconv.ParseInt(claims.Subject, 10, 64)
 }
