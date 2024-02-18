@@ -76,6 +76,10 @@ func (db *DB) Close() (err error) {
 	return nil
 }
 
+func (db *DB) Stats() sql.DBStats {
+	return db.db.Stats()
+}
+
 // newLogger returns a database logger.
 func newLogger() *slog.Logger {
 	opts := slog.HandlerOptions{Level: slog.LevelDebug}

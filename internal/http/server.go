@@ -58,6 +58,7 @@ func (s *Server) Open() (err error) {
 	h = s.notFound(h)
 	h = s.rateLimit(h)
 	h = s.recoverPanic(h)
+	h = s.metrics(h)
 	s.server.Handler = h
 
 	s.server.ErrorLog = slog.NewLogLogger(s.logger.Handler(), slog.LevelError)

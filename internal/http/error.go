@@ -11,7 +11,7 @@ import (
 func (s *Server) Error(w http.ResponseWriter, r *http.Request, e error) {
 	code := ErrorStatusCode(e)
 	if code == http.StatusInternalServerError {
-		s.logger.Error("Error processing request", "method", r.Method, "path", r.URL.Path, "error", e.Error())
+		s.LogError(w, r, "Error processing request", e)
 	}
 	errResp := ErrorBody(e)
 
@@ -20,6 +20,14 @@ func (s *Server) Error(w http.ResponseWriter, r *http.Request, e error) {
 		// In case of an error send a 500 Internal Server Error status code with an empty body
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+}
+
+func (s *Server) Log(w http.ResponseWriter, r *http.Request, msg string) {
+	s.logger.Error(msg, "method", r.Method, "path", r.URL.Path)
+}
+
+func (s *Server) LogError(w http.ResponseWriter, r *http.Request, msg string, e error) {
+	s.logger.Error(e.Error(), "method", r.Method, "path", r.URL.Path, "error", e.Error())
 }
 
 func ErrorStatusCode(err error) int {

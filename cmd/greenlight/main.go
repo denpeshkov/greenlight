@@ -2,11 +2,13 @@
 package main
 
 import (
+	"expvar"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -89,6 +91,15 @@ func run(cfg *Config, logger *slog.Logger) error {
 		http.WithLimiterRps(cfg.limiter.rps),
 		http.WithLimiterBurst(cfg.limiter.burst),
 	)
+
+	// Metrics
+	expvar.NewString("version").Set(greenlight.AppVersion)
+	expvar.Publish("goroutines", expvar.Func(func() any {
+		return runtime.NumGoroutine()
+	}))
+	expvar.Publish("database", expvar.Func(func() any {
+		return db.Stats()
+	}))
 
 	// Application graceful shutdown
 	shutdownErr := make(chan error)
