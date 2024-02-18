@@ -7,7 +7,10 @@ help: ## Display this help screen
 
 .PHONY: tidy
 tidy: ## Tidy
-	go fmt ./... && go mod tidy -v
+	go mod tidy -v
+	go mod verify
+	go fmt ./... 
+	go vet ./..
 
 .PHONY: lint
 lint: ## Lint
