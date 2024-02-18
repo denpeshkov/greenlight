@@ -1,5 +1,5 @@
 .PHONY: all
-all: tidy lint test
+all: help tidy lint test test/cover run
 
 .PHONY: help
 help: ## Display this help screen
