@@ -36,7 +36,7 @@ func Join(errs ...error) error {
 
 // Error returns a string representation of an error. Errors are formatted as a flat structure ["", ""].
 func (e joinError) Error() string {
-	if e == nil {
+	if len(e) == 0 {
 		return ""
 	}
 
