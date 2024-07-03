@@ -36,7 +36,7 @@ func (s *MovieService) Get(ctx context.Context, id int64) (_ *greenlight.Movie, 
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	query := `SELECT id, title, release_date, runtime, genres, version FROM movies WHERE id = $1`
 	args := []any{id}
@@ -66,7 +66,7 @@ func (s *MovieService) GetAll(ctx context.Context, filter greenlight.MovieFilter
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	sortCol, sortDir := filter.Sort, "ASC"
 	if v, ok := strings.CutPrefix(sortCol, "-"); ok {
@@ -114,7 +114,7 @@ func (s *MovieService) Update(ctx context.Context, m *greenlight.Movie) (err err
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	query := `UPDATE movies SET (title, release_date, runtime, genres, version) = ($1, $2, $3, $4, version+1) WHERE id = $5 AND version = $6 RETURNING version`
 	args := []any{m.Title, m.ReleaseDate, m.Runtime, pq.Array(m.Genres), m.ID, m.Version}
@@ -143,7 +143,7 @@ func (s *MovieService) Delete(ctx context.Context, id int64) (err error) {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	query := `DELETE FROM movies where id = $1`
 	args := []any{id}
@@ -176,7 +176,7 @@ func (s *MovieService) Create(ctx context.Context, m *greenlight.Movie) (err err
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	query := `INSERT INTO movies (title, release_date, runtime, genres) VALUES ($1, $2, $3, $4) RETURNING id, version`
 	args := []any{m.Title, m.ReleaseDate, m.Runtime, pq.Array(m.Genres)}

@@ -33,7 +33,7 @@ func (s *UserService) Get(ctx context.Context, email string) (_ *greenlight.User
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	query := `SELECT id, name, email, password_hash, version FROM users WHERE email = $1`
 	args := []any{email}
@@ -63,7 +63,7 @@ func (s *UserService) Create(ctx context.Context, u *greenlight.User) (err error
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	query := `INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3) RETURNING id, version`
 	args := []any{u.ID, u.Email, u.Password}
@@ -92,7 +92,7 @@ func (s *UserService) Update(ctx context.Context, u *greenlight.User) (err error
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	query := `UPDATE users SET (name, email, password_hash, version) = ($1, $2, $3, version+1) WHERE id = $5 AND version = $6 RETURNING version`
 	args := []any{u.Name, u.Email, u.Password, u.ID, u.Version}

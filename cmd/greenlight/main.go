@@ -59,7 +59,7 @@ func main() {
 
 	cfg := Config{}
 	if err := cfg.parseFlags(os.Args[1:]); err != nil {
-		logger.Error("flags parsing error: %w", err)
+		logger.Error("flags parsing error", "error", err)
 	}
 
 	if err := run(&cfg, logger); err != nil {
